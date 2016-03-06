@@ -12,6 +12,7 @@ This library is currently in an *alpha* state. It should be possible to send/rec
 
 ## Samples
 * dump_ftd - Connects to server, subscribes to Führerstand variables and displays the contents of received messages
+* pfeil_and_go - Connects to server, sounds the horn, and opens the throttle
 
 For an example of constructing a message to transmit, see the `ClientConnection::connect()` method.
 
