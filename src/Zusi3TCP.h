@@ -1,43 +1,42 @@
 /*
-Copyright(c) 2016, Jonathan Pilborough
-All rights reserved.
+Copyright (c) 2016 Jonathan Pilborough
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met :
-*Redistributions of source code must retain the above copyright
-notice, this list of conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions and the following disclaimer in the
-documentation and / or other materials provided with the distribution.
-* Neither the name of the author nor the
-names of its contributors may be used to endorse or promote products
-derived from this software without specific prior written permission.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED.IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
-DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 */
+/** @file */
 
 #pragma once
 
 #include <cstdint>
 #include <vector>
 
+//! Zusi
 namespace zusi
 {
+	//! Message Type Node ID - used for root node of message
 	enum MsgType
 	{
 		MsgType_Connecting = 1,
 		MsgType_Fahrpult = 2
 	};
 
+	//! Command Node ID - type of sub-nodes of root node
 	enum Command
 	{
 		Cmd_HELLO = 1,
@@ -52,6 +51,7 @@ namespace zusi
 		Cmd_GRAPHIC = 0x010C
 	};
 
+	//! Fuehrerstand Data variable ID's
 	enum FuehrerstandData
 	{
 		Fs_Geschwindigkeit = 1,
@@ -61,35 +61,93 @@ namespace zusi
 		Fs_Motordrehzahl = 15
 	};
 
-	/**
-	* Abstract interface for a socket
-	*/
+	//! Program status Data variable ID's
+	enum ProgData
+	{
+		Prog_Zugdatei = 1,
+		Prog_Zugnummer,
+		Prog_SimStart,
+		Prog_BuchfahrplanDatei
+	};
+
+	//! Input function ID's
+	enum Tastatur
+	{
+		Tt_Fahrschalter = 1,
+		Tt_DynBremse = 2,
+		Tt_Pfeife = 0x0C,
+		Tt_Sifa = 0x10,
+	};
+
+	//! Input command ID's
+	enum TastaturKommand
+	{
+		Tk_Unbestimmt = 0,
+		Tk_FahrschalterAuf_Down = 1,
+		Tk_FahrschalterAuf_Up = 2,
+		Tk_FahrschalterAb_Down = 3,
+		Tk_FahrschalterAb_Up = 4,
+		Tk_SifaDown = 0x39,
+		Tk_SifaUp = 0x3A,
+		Tk_PfeifeDown = 0x45,
+		Tk_PfeifeUp = 0x46
+	};
+
+	//! Input action ID's
+	enum TastaturAktion
+	{
+		Ta_Default = 0,
+		Ta_Down = 1,
+		Ta_Up = 2,
+		Ta_AufDown = 3,
+		Ta_AufUp = 4,
+		Ta_AbDown = 5,
+		Ta_AbUp = 6,
+		Ta_Absolut = 7,
+		Ta_Absolut1000er = 8
+	};
+
+	//! Abstract interface for a socket
 	class Socket
 	{
 	public:
 
-		/** Try to read bytes into dest from socket. Return number of bytes actually written
+		virtual ~Socket() {}
+
+		/** @brief Try to read bytes into dest from socket.
+		*
 		* Method should block until all requested bytes are read, or the stream ends
+		* @param dest Data buffer to write to
+		* @param bytes Number of bytes to read
+		* @return Number of bytes read
 		*/
 		virtual int ReadBytes(void* dest, int bytes) = 0;
+
 		/**
-		* Try to write bytes from src to socket. Return number of bytes actually written 
+		* @brief Try to write bytes from src to socket.
+		* @param src Data buffer to read from
+		* @param bytes Number of bytes to read
+		* @return Number of bytes successfully written
 		*/
 		virtual int WriteBytes(const void* src, int bytes) = 0;
 	};
 
 	/**
-	* Generic Zusi message attribute.
-	* data is owned by the class
+	* @brief Generic Zusi message attribute.
+	* Data is owned by the class
 	*/
 	class Attribute
 	{
 	public:
 
+		//! Construct an empty attribute
 		Attribute() : m_id(0), data_bytes(0)
 		{
 		}
 
+		/** @brief Constructs an attribute
+		* @param id Attribute ID
+		*/
 		Attribute(uint16_t id) : m_id(id), data_bytes(0)
 		{
 		}
@@ -104,38 +162,49 @@ namespace zusi
 
 		bool read(Socket& sock, uint32_t length);
 
+		//! Get Attribute ID
 		uint16_t getId() const
 		{
 			return m_id;
 		}
 
-		/**
-		* Utility function to set the value as SmallInt
-		*/
+		//! Utility function to set the value as Word
 		void setValueUint16(uint16_t value)
 		{
 			data = new uint16_t(value);
 			data_bytes = sizeof(value);
 		}
 
+		//! Utility function to set the value as SmallInt
+		void setValueInt16(int16_t value)
+		{
+			data = new int16_t(value);
+			data_bytes = sizeof(value);
+		}
+
+		//! Number of bytes in #data
 		uint32_t data_bytes;
+
+		//! Attribute data
 		void* data;
 
 	private:
 		uint16_t m_id;
 	};
 
-	/**
-	* Generic Zusi message node
-	*/
+	//! Generic Zusi message node
 	class Node
 	{
 	public:
 
+		//! Constructs an empty node
 		Node() : m_id(0)
 		{
 		}
 
+		/** @brief Constructs an Node
+		* @param id Attribute ID
+		*/
 		Node(uint16_t id) : m_id(id)
 		{
 		}
@@ -153,12 +222,15 @@ namespace zusi
 		
 		bool read(Socket& sock);
 
+		//! Get Attribute ID
 		uint16_t getId() const
 		{
 			return m_id;
 		}
 
+		//!  Attributes of this node
 		std::vector<Attribute*> attributes;
+		//!  Sub-nodes of this node
 		std::vector<Node*> nodes;
 
 	private:
@@ -168,14 +240,12 @@ namespace zusi
 		static const uint32_t NODE_END = 0xFFFFFFFF;
 	};
 
-	/**
-	* Parent class for a connection
-	*/
+	//! Parent class for a connection
 	class Connection
 	{
 	public:
 		/**
-		* Create connection which will communicate over socket
+		* @brief Create connection which will communicate over socket
 		* @param socket The socket - class does not take ownership of it
 		*/
 		Connection(Socket* socket) : m_socket(socket)
@@ -186,23 +256,17 @@ namespace zusi
 		{
 		}
 
-		/**
-		* Receive a message
-		*/
+		//! Receive a message
 		bool receiveMessage(Node& dest) const;
 
-		/**
-		* Send a message
-		*/
+		//! Send a message
 		bool sendMessage(Node& src);
 
 	protected:
 		Socket* m_socket;
 	};
 
-	/**
-	* Manages connection to a Zusi server
-	*/
+	//! Manages connection to a Zusi server
 	class ClientConnection : public Connection
 	{
 	public:
@@ -215,10 +279,39 @@ namespace zusi
 		}
 
 		/**
-		* Set up connection to server
+		* @brief Set up connection to server
+		* 
+		* Sends the HELLO and NEEDED_DATA commands and processes the results
+		*
+		* @param client_id Null-terminated character array with an identification string for the client
 		* @param fs_data Fuehrerstand Data ID's to subscribe to
+		* @param prog_data Zusi program status ID's to subscribe to
+		* @param bedienung Subscribe to input events if true
+		* @return True on success
 		*/
-		bool connect(const std::vector<FuehrerstandData> fs_data);
+		bool connect(const char* client_id, const std::vector<FuehrerstandData>& fs_data, const std::vector<ProgData>& prog_data, bool bedienung);
+
+		/** 
+		* @brief Send an INPUT command 
+		* @return True on success
+		*/
+		bool sendInput(Tastatur taster, TastaturKommand kommand, TastaturAktion aktion, int16_t position);
+
+		//! Get the version string supplied by the server
+		std::string getZusiVersion()
+		{
+			return m_zusiVersion;
+		}
+
+		//! Get the connection info string supplied by the server
+		std::string getConnectionnfo()
+		{
+			return m_connectionInfo;
+		}
+
+	private:
+		std::string m_zusiVersion;
+		std::string m_connectionInfo;
 
 	};
 

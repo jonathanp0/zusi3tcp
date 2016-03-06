@@ -1,33 +1,29 @@
 /*
-Copyright(c) 2016, Jonathan Pilborough
-All rights reserved.
+Copyright (c) 2016 Jonathan Pilborough
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met :
-*Redistributions of source code must retain the above copyright
-notice, this list of conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions and the following disclaimer in the
-documentation and / or other materials provided with the distribution.
-* Neither the name of the author nor the
-names of its contributors may be used to endorse or promote products
-derived from this software without specific prior written permission.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED.IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
-DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 */
 
 #include "Zusi3TCP.h"
 
 #include <cstdint>
+#include <cstring>
 
 namespace zusi
 {
@@ -109,7 +105,7 @@ namespace zusi
 		return src.write(*m_socket);
 	}
 
-	bool ClientConnection::connect(const std::vector<FuehrerstandData> fs_data)
+	bool ClientConnection::connect(const char* client_id, const std::vector<FuehrerstandData>& fs_data, const std::vector<ProgData>& prog_data, bool bedienung)
 	{
 		//Send hello
 		Node hello_message(1);
@@ -126,8 +122,9 @@ namespace zusi
 		hello->attributes.push_back(att);
 
 		att = new zusi::Attribute(3);
-		att->data_bytes = 8;
-		att->data = new char[9]{ "Fahrpult" };
+		att->data_bytes = strlen(client_id);
+		att->data = new char[att->data_bytes];
+		memcpy(att->data, client_id, att->data_bytes);
 		hello->attributes.push_back(att);
 
 		att = new zusi::Attribute(4);
@@ -144,19 +141,54 @@ namespace zusi
 		{
 			throw std::runtime_error("Protocol error - invalid response from server");
 		}
+		else
+		{
+			for (Attribute* att : hello_ack.nodes[0]->attributes)
+			{
+				switch (att->getId())
+				{
+				case 1:
+					m_zusiVersion = std::string(static_cast<char*>(att->data), att->data_bytes);
+					break;
+				case 2:
+					m_connectionInfo = std::string(static_cast<char*>(att->data), att->data_bytes);
+					break;
+				default:
+					break;
+				}
+			}
+		}
 
 		//Send NEEDED_DATA
 		Node needed_data_msg(MsgType_Fahrpult);
 		Node* needed = new Node(Cmd_NEEDED_DATA);
 		needed_data_msg.nodes.push_back(needed);
-		Node* needed_fuehrerstand = new Node(0xA);
-		needed->nodes.push_back(needed_fuehrerstand);
 
-		for (FuehrerstandData fd_id : fs_data)
+		if (!fs_data.empty())
 		{
-			att = new Attribute(1);
-			att->setValueUint16(fd_id);
-			needed_fuehrerstand->attributes.push_back(att);
+			Node* needed_fuehrerstand = new Node(0xA);
+			needed->nodes.push_back(needed_fuehrerstand);
+			for (FuehrerstandData fd_id : fs_data)
+			{
+				att = new Attribute(1);
+				att->setValueUint16(fd_id);
+				needed_fuehrerstand->attributes.push_back(att);
+			}
+		}
+
+		if (bedienung)
+			needed->nodes.push_back(new Node(0xB));
+
+		if (!prog_data.empty())
+		{
+			Node* needed_prog = new Node(0xC);
+			needed->nodes.push_back(needed_prog);
+			for (ProgData prog_id : prog_data)
+			{
+				att = new Attribute(1);
+				att->setValueUint16(prog_id);
+				needed_prog->attributes.push_back(att);
+			}
 		}
 
 		needed_data_msg.write(*m_socket);
@@ -171,5 +203,47 @@ namespace zusi
 
 		return true;
 	}
+
+
+	bool ClientConnection::sendInput(Tastatur taster, TastaturKommand kommand, TastaturAktion aktion, int16_t position)
+	{
+		Node input_message(MsgType_Fahrpult);
+		Node* input = new Node(Cmd_INPUT);
+		input_message.nodes.push_back(input);
+
+		Node* action = new Node(1);
+		input->nodes.push_back(action);
+
+		//Tasterzuordnung
+		Attribute* att = new Attribute(1);
+		att->setValueUint16(taster);
+		action->attributes.push_back(att);
+
+		//Kommand
+		att = new Attribute(2);
+		att->setValueUint16(kommand);
+		action->attributes.push_back(att);
+
+		//Aktion
+		att = new Attribute(3);
+		att->setValueUint16(aktion);
+		action->attributes.push_back(att);
+
+		//Position
+		att = new Attribute(4);
+		att->setValueInt16(position);
+		action->attributes.push_back(att);
+
+		//'Spezielle funktion parameter'
+		att = new Attribute(5);
+		float* empty_float = new float(position);
+		att->data = empty_float;
+		att->data_bytes = sizeof(empty_float);
+		action->attributes.push_back(att);
+
+		return sendMessage(input_message);
+
+	}
+
 
 }
