@@ -4,6 +4,8 @@ An implementation of the Zusi 3 TCP protocol in C++.
 
 This library is currently in an *alpha* state. It should be possible to send/receive all Zusi messages, but there is only limited error checking and the API will change in the future. The ID enumerations are only partly populated.
 
+[Read the API Documentation](http://jonathanp0.github.io/zusi3tcp/doc/html/)
+
 ## Classes
 * `zusi::Socket` - Abstract interface for a network communications class
 * `zusi::Node` - Message node. Has and ID, child attributes and nodes.
