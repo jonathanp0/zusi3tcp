@@ -22,6 +22,7 @@ SOFTWARE.
 
 #include <iostream>
 #include <vector>
+#include <string>
 
 #include "Zusi3TCP.h"
 #include "DebugSocket.h"
