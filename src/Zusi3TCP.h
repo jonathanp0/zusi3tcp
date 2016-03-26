@@ -25,8 +25,9 @@ SOFTWARE.
 
 #include <cstdint>
 #include <vector>
+#include <set>
 
-//! Zusi
+//! Zusi Namespace
 namespace zusi
 {
 	//! Message Type Node ID - used for root node of message
@@ -58,6 +59,8 @@ namespace zusi
 		Fs_DruckHauptlufleitung = 2,
 		Fs_DruckBremszylinder = 3,
 		Fs_DruckHauptluftbehaelter = 4,
+		Fs_Oberstrom = 13,
+		Fs_Fahrleitungsspannung = 14,
 		Fs_Motordrehzahl = 15
 	};
 
@@ -179,6 +182,20 @@ namespace zusi
 		void setValueInt16(int16_t value)
 		{
 			data = new int16_t(value);
+			data_bytes = sizeof(value);
+		}
+
+		//! Utility function to set the value as Byte
+		void setValueUint8(uint8_t value)
+		{
+			data = new uint8_t(value);
+			data_bytes = sizeof(value);
+		}
+
+		//! Utility function to set the value as Single
+		void setValueFloat(float value)
+		{
+			data = new float(value);
 			data_bytes = sizeof(value);
 		}
 
@@ -312,6 +329,50 @@ namespace zusi
 	private:
 		std::string m_zusiVersion;
 		std::string m_connectionInfo;
+
+	};
+
+	//! A Zusi Server emulator
+	class ServerConnection : public Connection
+	{
+	public:
+		ServerConnection(Socket* socket) : Connection(socket), m_bedienung(false)
+		{
+		}
+
+		virtual ~ServerConnection()
+		{
+		}
+
+		//! Run connection handshake with client
+		bool accept();
+
+		/**
+		* @brief Send FuehrerstandData updates to the client
+		*
+		* Only data that was requested by the client will actually be sent
+		*/
+		bool sendData(std::vector<std::pair<FuehrerstandData, float>> ftd_items);
+
+		//! Get the version string supplied by the client
+		std::string getClientVersion()
+		{
+			return m_clientVersion;
+		}
+
+		//! Get the connection info string supplied by the client
+		std::string getClientName()
+		{
+			return m_clientName;
+		}
+
+	private:
+		std::string m_clientVersion;
+		std::string m_clientName;
+
+		std::set<FuehrerstandData> m_fs_data;
+		std::set<ProgData> m_prog_data;
+		bool m_bedienung;
 
 	};
 

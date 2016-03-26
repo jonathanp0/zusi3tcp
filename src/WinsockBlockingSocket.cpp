@@ -63,6 +63,16 @@ namespace zusi
 		}
 	}
 
+	WinsockBlockingSocket::WinsockBlockingSocket(SOCKET socket) : m_socket(socket)
+	{
+		// Initialise Winsock
+		if (WSAStartup(MAKEWORD(2, 2), &m_wsadat) != 0)
+		{
+			WSACleanup();
+			throw std::runtime_error("Winsock error - Winsock initialization failed");
+		}
+	}
+
 	WinsockBlockingSocket::~WinsockBlockingSocket()
 	{
 		// Shutdown our socket

@@ -44,6 +44,16 @@ namespace zusi
 		* @throws std::runtime_error system error when creating socket
 		*/
 		WinsockBlockingSocket(const char* ip_address, int port);
+
+		/**
+		* @brief Construct a new socket using an existing socket handle
+		*
+		* The class will handle clean-up of the socket.
+		*
+		* @param socket Winsock socket handle
+		*/
+		WinsockBlockingSocket(SOCKET socket);
+
 		virtual ~WinsockBlockingSocket();
 
 		virtual int ReadBytes(void* dest, int bytes);

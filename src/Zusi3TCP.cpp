@@ -245,5 +245,134 @@ namespace zusi
 
 	}
 
+	bool ServerConnection::accept()
+	{
+		//Recieve HELLO
+		{
+			Node hello_msg;
+			receiveMessage(hello_msg);
+			if (hello_msg.nodes.size() != 1 || hello_msg.nodes[0]->getId() != Cmd_HELLO)
+			{
+				throw std::runtime_error("Protocol error - invalid HELLO from client");
+			}
+			else
+			{
+				for (Attribute* att : hello_msg.nodes[0]->attributes)
+				{
+					switch (att->getId())
+					{
+					case 3:
+						m_clientName = std::string(static_cast<char*>(att->data), att->data_bytes);
+						break;
+					case 4:
+						m_clientVersion = std::string(static_cast<char*>(att->data), att->data_bytes);
+						break;
+					default:
+						break;
+					}
+				}
+			}
+		}
+
+		//Send hello ack
+		{
+			Node hello_ack_message(MsgType_Connecting);
+
+			zusi::Node* hello_ack = new zusi::Node(Cmd_ACK_HELLO);
+			hello_ack_message.nodes.push_back(hello_ack);
+
+			zusi::Attribute* att = new zusi::Attribute(1);
+			att->data_bytes = 9;
+			att->data = new char[10]{ "3.0.1.0" };
+			hello_ack->attributes.push_back(att);
+
+			att = new zusi::Attribute(2);
+			att->setValueUint8('0');
+			hello_ack->attributes.push_back(att);
+
+			att = new zusi::Attribute(3);
+			att->setValueUint8(0);
+			hello_ack->attributes.push_back(att);
+
+			sendMessage(hello_ack_message);
+		}
+
+		//Receive NEEDED_DATA
+		{
+			Node needed_data_msg;
+			receiveMessage(needed_data_msg);
+			if (needed_data_msg.nodes.size() != 1 || needed_data_msg.nodes[0]->getId() != Cmd_NEEDED_DATA)
+			{
+				throw std::runtime_error("Protocol error - invalid NEEDED_DATA from client");
+			}
+
+			for (const zusi::Node* node : needed_data_msg.nodes[0]->nodes)
+			{
+				uint16_t group_id = node->getId();
+
+				if (group_id == 0xB)
+				{
+					m_bedienung = true;
+					continue;
+				}
+
+				for (const Attribute* att : node->attributes)
+				{
+					if (att->getId() != 1 || att->data_bytes != 2)
+						continue;
+
+					uint16_t var_id = *(reinterpret_cast<uint16_t*>(att->data));
+
+					if (group_id == 0xA)
+						m_fs_data.insert(static_cast<zusi::FuehrerstandData>(var_id));
+					else if (group_id == 0xC)
+						m_prog_data.insert(static_cast<zusi::ProgData>(var_id));
+				}
+
+			}
+		}
+
+		//Send ACK_NEEDED_DATA
+		{
+			Node data_ack_message(MsgType_Fahrpult);
+
+			zusi::Node* data_ack = new zusi::Node(Cmd_ACK_NEEDED_DATA);
+			data_ack_message.nodes.push_back(data_ack);
+
+			zusi::Attribute* att = new zusi::Attribute(1);
+			att->setValueUint8(0);
+			data_ack->attributes.push_back(att);
+
+			sendMessage(data_ack_message);
+		}
+
+		
+		return true;
+	}
+
+	bool ServerConnection::sendData(std::vector<std::pair<FuehrerstandData, float>> ftd_items)
+	{
+		Node data_message(MsgType_Fahrpult);
+
+		zusi::Node* data = new zusi::Node(Cmd_DATA_FTD);
+		data_message.nodes.push_back(data);
+
+		for (const auto& ftd : ftd_items)
+		{
+			if (m_fs_data.count(ftd.first) == 1)
+			{
+				Attribute* att = new zusi::Attribute(ftd.first);
+				att->setValueFloat(ftd.second);
+				data->attributes.push_back(att);
+			}
+		}
+
+		if (data->attributes.empty())
+			return true;
+			
+		return sendMessage(data_message);
+
+	}
+
 
 }
