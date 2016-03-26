@@ -11,10 +11,12 @@ This library is currently in an *alpha* state. It should be possible to send/rec
 * `zusi::Node` - Message node. Has and ID, child attributes and nodes.
 * `zusi::Attribute` - Message attribute. Has an ID, and some data.
 * `zusi::ClientConnection` -  Encapsulates a connection to a Zusi 3 server. Negotiates a connection with the server and sends and recieves message for the application.
+* `zusi::ServerConnection` -  Emulates a Zusi 3 server. Negotiates a connection with the client sends data updates.
 
 ## Samples
 * dump_ftd - Connects to server, subscribes to Führerstand variables and displays the contents of received messages
 * pfeil_and_go - Connects to server, sounds the horn, and opens the throttle
+* server_emulator - Accepts a client connection and sends simulated Speed and Power data to the client
 
 For an example of constructing a message to transmit, see the `ClientConnection::connect()` method.
 
