@@ -374,5 +374,23 @@ namespace zusi
 
 	}
 
+	bool ServerConnection::sendData(std::vector<FsDataItem*> ftd_items)
+	{
+		if (ftd_items.empty())
+			return true;
+
+		Node data_message(MsgType_Fahrpult);
+
+		zusi::Node* data = new zusi::Node(Cmd_DATA_FTD);
+		data_message.nodes.push_back(data);
+
+		for (const auto& item : ftd_items)
+			if(m_fs_data.count(item->getId()) == 1)
+				item->appendTo(*data);
+
+		return sendMessage(data_message);
+
+	}
+
 
 }

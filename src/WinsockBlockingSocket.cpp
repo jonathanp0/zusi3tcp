@@ -97,5 +97,12 @@ namespace zusi
 		return outDataLength;
 	}
 
+	bool WinsockBlockingSocket::DataToRead()
+	{
+		unsigned long bytes_available;
+		if(ioctlsocket(m_socket, FIONREAD, &bytes_available) != 0)
+			return false;
+		return bytes_available > 0;
+	}
 }
 

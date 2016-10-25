@@ -58,6 +58,7 @@ namespace zusi
 
 		virtual int ReadBytes(void* dest, int bytes);
 		virtual int WriteBytes(const void* src, int bytes);
+		virtual bool DataToRead();
 
 	private:
 

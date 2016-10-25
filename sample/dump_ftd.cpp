@@ -42,6 +42,24 @@ void parseDataMessage(const zusi::Node& msg)
 					std::cout << "FS Data " << att->getId() << ": " << value << std::endl;
 				}
 			}
+			else if (node->getId() == zusi::Cmd_DATA_OPERATION)
+			{
+				for (const zusi::Node* input : node->nodes)
+				{
+					if (input->getId() == 1)
+					{
+						std::cout << "Tastur Operation:" << std::endl;
+						for (const zusi::Attribute* att : input->attributes)
+						{
+							if(att->getId() <= 0x3)
+								std::cout << "    Parameter " << att->getId() << " = " << *(reinterpret_cast<uint16_t*>(att->data)) << std::endl;
+							else if(att->getId() == 0x4)
+								std::cout << "    Position = " << *(reinterpret_cast<int16_t*>(att->data)) << std::endl;
+						}
+						
+					}
+				}
+			}
 		}
 	}
 }
@@ -62,7 +80,7 @@ int main(int argc, char** argv)
 	
 		//Subscribe to receive status updates about the above variables
 		//Not subscribing to input events
-		con.connect("DumpFtd", fd_ids, prog_ids, false);
+		con.connect("DumpFtd", fd_ids, prog_ids, true);
 
 		std::cout << "Zusi Version:" << con.getZusiVersion() << std::endl;
 		std::cout << "Connection Info: " << con.getConnectionnfo() << std::endl;

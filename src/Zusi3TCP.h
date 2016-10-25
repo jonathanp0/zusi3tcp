@@ -61,7 +61,11 @@ namespace zusi
 		Fs_DruckHauptluftbehaelter = 4,
 		Fs_Oberstrom = 13,
 		Fs_Fahrleitungsspannung = 14,
-		Fs_Motordrehzahl = 15
+		Fs_Motordrehzahl = 15,
+		Fs_UhrzeitStunde = 16,
+		Fs_UhrzeitMinute = 17,
+		Fs_UhrzeitSekunde = 18,
+		Fs_Sifa = 100
 	};
 
 	//! Program status Data variable ID's
@@ -133,6 +137,12 @@ namespace zusi
 		* @return Number of bytes successfully written
 		*/
 		virtual int WriteBytes(const void* src, int bytes) = 0;
+
+		/**
+		* @brief Check if there is incoming data waiting to be read
+		* @return True if data available, otherwise false
+		*/
+		virtual bool DataToRead() = 0;
 	};
 
 	/**
@@ -153,6 +163,31 @@ namespace zusi
 		*/
 		Attribute(uint16_t id) : m_id(id), data_bytes(0)
 		{
+		}
+
+		Attribute(const Attribute& o) : m_id(o.m_id), data_bytes(o.data_bytes)
+		{
+			if (!o.data_bytes)
+				return;
+			data = new char[o.data_bytes];
+			memcpy(data, o.data, data_bytes);
+		}
+
+		Attribute& operator=(const Attribute& o)
+		{
+			if (data_bytes)
+				delete data;
+
+			m_id = o.m_id;
+			data_bytes = o.data_bytes;
+
+			if (o.data_bytes)
+			{
+				data = new char[o.data_bytes];
+				memcpy(data, o.data, data_bytes);
+			}
+
+			return *this;
 		}
 
 		virtual ~Attribute()
@@ -235,6 +270,41 @@ namespace zusi
 				delete n_p;
 		}
 
+		Node(const Node& o) : m_id(o.m_id)
+		{
+			for (auto it = o.attributes.begin(); it < attributes.end(); ++it)
+			{
+				attributes.push_back(new Attribute(**it));
+			}
+			for (auto it = o.nodes.begin(); it < nodes.end(); ++it)
+			{
+				nodes.push_back(new Node(**it));
+			}
+		}
+
+		Node& operator=(const Node& o)
+		{
+			m_id = o.m_id;
+
+			for (Attribute* a_p : attributes)
+				delete a_p;
+
+			for (Node* n_p : nodes)
+				delete n_p;
+
+			attributes.clear();
+			nodes.clear();
+
+			for (auto it = o.attributes.begin(); it < attributes.end(); ++it)
+				attributes.push_back(new Attribute(**it));
+
+			for (auto it = o.nodes.begin(); it < nodes.end(); ++it)
+				nodes.push_back(new Node(**it));
+
+			return *this;
+
+		}
+
 		bool write(Socket& sock) const;
 		
 		bool read(Socket& sock);
@@ -257,6 +327,115 @@ namespace zusi
 		static const uint32_t NODE_END = 0xFFFFFFFF;
 	};
 
+	/** 
+	@brief Represents an piece of data which is sent as part of DATA_FTD message
+
+	It should be comparable so that the application can check if the data has changed
+	before transmitting.
+	*/
+	class FsDataItem
+	{
+	public:
+		FsDataItem(FuehrerstandData id) : m_id(id) {};
+
+		//!Append this data item to the specified node
+		virtual void appendTo(Node& node) const = 0;
+		virtual bool operator==(const FsDataItem& a) = 0;
+
+		bool operator!=(const FsDataItem& a) {
+			return !(*this == a);
+		}
+
+		//! Returns the Fuehrerstand Data type ID of this data item
+		FuehrerstandData getId() const { return m_id; }
+	private:
+		FuehrerstandData m_id;
+	};
+
+	//! Generic class for a float DATA_FTD item
+	class FloatFsDataItem : public FsDataItem
+	{
+	public:
+		FloatFsDataItem(FuehrerstandData id, float value) : FsDataItem(id), m_value(value) {}
+
+		virtual bool operator==(const FsDataItem& a){
+			if (getId() != a.getId())
+				return false;
+
+			const FloatFsDataItem* pA = dynamic_cast<const FloatFsDataItem*>(&a);
+			if(pA && pA->m_value == m_value)
+				return true;
+			
+			return false;
+		};
+
+		virtual void appendTo(Node& node) const
+		{ 
+			Attribute* att = new zusi::Attribute(getId());
+			att->setValueFloat(m_value);
+			node.attributes.push_back(att);
+		}
+
+		float m_value;
+	};
+
+	//! Special class for the DATA_FTD structure for SIFA information
+	class SifaFsDataItem : public FsDataItem
+	{
+	public:
+		SifaFsDataItem(bool haupt, bool licht) : FsDataItem(Fs_Sifa), m_hauptschalter(haupt), m_licht(licht) {}
+
+		virtual bool operator==(const FsDataItem& a) {
+			if (getId() != a.getId())
+				return false;
+
+			const SifaFsDataItem* pA = dynamic_cast<const SifaFsDataItem*>(&a);
+			if (pA && pA->m_licht == m_licht
+				&& pA->m_hauptschalter == m_hauptschalter
+				&& pA->m_hupewarning == m_hupewarning
+				&& pA->m_hupebrems == m_hupebrems
+				&& pA->m_storschalter == m_storschalter
+				&& pA->m_luftabsper == m_luftabsper)
+				return true;
+
+			return false;
+		};
+
+		virtual void appendTo(Node& node) const
+		{
+			Node* sNode = new zusi::Node(getId());
+			
+			Attribute* att = new zusi::Attribute(1);
+			att->setValueUint8('0');
+			sNode->attributes.push_back(att);
+
+			att = new zusi::Attribute(2);
+			att->setValueUint8(m_licht);
+			sNode->attributes.push_back(att);
+
+			att = new zusi::Attribute(3);
+			att->setValueUint8(m_hupebrems ? 2 : m_hupewarning ? 1 : 0);
+			sNode->attributes.push_back(att);
+
+			att = new zusi::Attribute(4);
+			att->setValueUint8(m_hauptschalter + 1);
+			sNode->attributes.push_back(att);
+			
+			att = new zusi::Attribute(5);
+			att->setValueUint8(m_storschalter + 1);
+			sNode->attributes.push_back(att);
+
+			att = new zusi::Attribute(6);
+			att->setValueUint8(m_luftabsper + 1);
+			sNode->attributes.push_back(att);
+
+			node.nodes.push_back(sNode);
+		}
+
+		bool m_licht = false, m_hupewarning = false, m_hupebrems = false, m_hauptschalter = true, m_storschalter = true, m_luftabsper = true;
+	};
+
+
 	//! Parent class for a connection
 	class Connection
 	{
@@ -278,6 +457,9 @@ namespace zusi
 
 		//! Send a message
 		bool sendMessage(Node& src);
+
+		//! Check if there is data read
+		bool dataAvailable() { return m_socket->DataToRead(); }
 
 	protected:
 		Socket* m_socket;
@@ -353,6 +535,13 @@ namespace zusi
 		* Only data that was requested by the client will actually be sent
 		*/
 		bool sendData(std::vector<std::pair<FuehrerstandData, float>> ftd_items);
+
+		/**
+		* @brief Send FuehrerstandData updates to the client
+		*
+		* Only data that was requested by the client will actually be sent
+		*/
+		bool sendData(std::vector<FsDataItem*> ftd_items);
 
 		//! Get the version string supplied by the client
 		std::string getClientVersion()
