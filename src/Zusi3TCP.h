@@ -65,6 +65,11 @@ namespace zusi
 		Fs_UhrzeitStunde = 16,
 		Fs_UhrzeitMinute = 17,
 		Fs_UhrzeitSekunde = 18,
+		Fs_Hauptschalter = 19,
+		Fs_AfbSollGeschwindigkeit = 23,
+		Fs_UhrzeitDigital = 35,
+		Fs_AfbEinAus = 54,
+		Fs_Datum = 75,
 		Fs_Sifa = 100
 	};
 

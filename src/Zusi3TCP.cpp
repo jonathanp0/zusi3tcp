@@ -283,7 +283,7 @@ namespace zusi
 
 			zusi::Attribute* att = new zusi::Attribute(1);
 			att->data_bytes = 9;
-			att->data = new char[10]{ "3.0.1.0" };
+			att->data = new char[10]{ "3.1.2.0" };
 			hello_ack->attributes.push_back(att);
 
 			att = new zusi::Attribute(2);
