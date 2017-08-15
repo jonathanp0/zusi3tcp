@@ -26,6 +26,10 @@ SOFTWARE.
 #include <cstdint>
 #include <vector>
 #include <set>
+#include <string>
+#include <exception>
+
+#include "string.h" // For memcpy
 
 //! Zusi Namespace
 namespace zusi
@@ -159,18 +163,18 @@ namespace zusi
 	public:
 
 		//! Construct an empty attribute
-		Attribute() : m_id(0), data_bytes(0)
+		Attribute() : data_bytes(0), data(nullptr), m_id(0)
 		{
 		}
 
 		/** @brief Constructs an attribute
 		* @param id Attribute ID
 		*/
-		Attribute(uint16_t id) : m_id(id), data_bytes(0)
+		Attribute(uint16_t id) : data_bytes(0), data(nullptr), m_id(id)
 		{
 		}
 
-		Attribute(const Attribute& o) : m_id(o.m_id), data_bytes(o.data_bytes)
+		Attribute(const Attribute& o) : data_bytes(o.data_bytes), m_id(o.m_id)
 		{
 			if (!o.data_bytes)
 				return;
@@ -388,7 +392,7 @@ namespace zusi
 	class SifaFsDataItem : public FsDataItem
 	{
 	public:
-		SifaFsDataItem(bool haupt, bool licht) : FsDataItem(Fs_Sifa), m_hauptschalter(haupt), m_licht(licht) {}
+		SifaFsDataItem(bool haupt, bool licht) : FsDataItem(Fs_Sifa), m_licht(licht), m_hauptschalter(haupt) {}
 
 		virtual bool operator==(const FsDataItem& a) {
 			if (getId() != a.getId())

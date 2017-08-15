@@ -24,6 +24,7 @@ SOFTWARE.
 
 #include <cstdint>
 #include <cstring>
+#include <stdexcept>
 
 namespace zusi
 {
@@ -129,7 +130,8 @@ namespace zusi
 
 		att = new zusi::Attribute(4);
 		att->data_bytes = 3;
-		att->data = new char[4]{ "2.0" };
+		att->data = new char[3];
+		memcpy(att->data, "2.0", 3);
 		hello->attributes.push_back(att);
 
 		hello_message.write(*m_socket);
@@ -283,7 +285,8 @@ namespace zusi
 
 			zusi::Attribute* att = new zusi::Attribute(1);
 			att->data_bytes = 9;
-			att->data = new char[10]{ "3.1.2.0" };
+			att->data = new char[9];
+			memcpy(att->data, "3.1.2.0", 9);
 			hello_ack->attributes.push_back(att);
 
 			att = new zusi::Attribute(2);
