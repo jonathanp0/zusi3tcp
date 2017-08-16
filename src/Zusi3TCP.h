@@ -27,7 +27,7 @@ SOFTWARE.
 #include <vector>
 #include <set>
 #include <string>
-#include <exception>
+#include <stdexcept>
 
 #include "string.h" // For memcpy
 
@@ -71,6 +71,7 @@ namespace zusi
 		Fs_UhrzeitSekunde = 18,
 		Fs_Hauptschalter = 19,
 		Fs_AfbSollGeschwindigkeit = 23,
+        Fs_Gesamtweg = 25,
 		Fs_UhrzeitDigital = 35,
 		Fs_AfbEinAus = 54,
 		Fs_Datum = 75,
@@ -163,46 +164,29 @@ namespace zusi
 	public:
 
 		//! Construct an empty attribute
-		Attribute() : data_bytes(0), data(nullptr), m_id(0)
+        Attribute() : data_bytes(0), m_id(0)
 		{
 		}
 
 		/** @brief Constructs an attribute
 		* @param id Attribute ID
 		*/
-		Attribute(uint16_t id) : data_bytes(0), data(nullptr), m_id(id)
+		Attribute(uint16_t id) : data_bytes(0), m_id(id)
 		{
 		}
 
-		Attribute(const Attribute& o) : data_bytes(o.data_bytes), m_id(o.m_id)
-		{
-			if (!o.data_bytes)
-				return;
-			data = new char[o.data_bytes];
-			memcpy(data, o.data, data_bytes);
-		}
+        template <typename T>
+        Attribute(int16_t id, T value) : data_bytes(0), m_id(id)
+        {
+            setValue<T>(value);
+        }
 
-		Attribute& operator=(const Attribute& o)
-		{
-			if (data_bytes)
-				delete data;
-
-			m_id = o.m_id;
-			data_bytes = o.data_bytes;
-
-			if (o.data_bytes)
-			{
-				data = new char[o.data_bytes];
-				memcpy(data, o.data, data_bytes);
-			}
-
-			return *this;
-		}
+		Attribute(const Attribute&) = default;
+        Attribute(Attribute&&) = default;
+		Attribute& operator=(const Attribute& o) = default;
 
 		virtual ~Attribute()
 		{
-			if (data_bytes > 0)
-				delete data;
 		}
 
 		void write(Socket& sock) const;
@@ -215,41 +199,62 @@ namespace zusi
 			return m_id;
 		}
 
-		//! Utility function to set the value as Word
-		void setValueUint16(uint16_t value)
+		//! Utility function to set the value
+		template<typename T>
+		void setValue(T value)
 		{
-			data = new uint16_t(value);
-			data_bytes = sizeof(value);
+            static_assert(sizeof(T) <= sizeof(data), "Trying to write too big data into attribute");
+			*reinterpret_cast<T*>(data) = value;
+			data_bytes = sizeof(T);
 		}
 
-		//! Utility function to set the value as SmallInt
-		void setValueInt16(int16_t value)
-		{
-			data = new int16_t(value);
-			data_bytes = sizeof(value);
-		}
+        void setValueRaw(const uint8_t *data, size_t length)
+        {
+            if (length > sizeof(this->data)) {
+                throw std::runtime_error("Trying to write too much data");
+            }
+            data_bytes = length;
+            memcpy(this->data, data, length);
+        }
 
-		//! Utility function to set the value as Byte
-		void setValueUint8(uint8_t value)
-		{
-			data = new uint8_t(value);
-			data_bytes = sizeof(value);
-		}
+        bool hasValue() const
+        {
+            return data_bytes != 0;
+        }
 
-		//! Utility function to set the value as Single
-		void setValueFloat(float value)
-		{
-			data = new float(value);
-			data_bytes = sizeof(value);
-		}
+        template<typename T>
+        bool hasValueType() const
+        {
+            return sizeof(T) == data_bytes;
+        }
 
+        size_t getValueLen() const
+        {
+            return data_bytes;
+        }
+
+        template<typename T>
+        T getValue() const
+        {
+            static_assert(sizeof(T) <= sizeof(data), "Trying to read too big data into attribute");
+            return *reinterpret_cast<const T*>(data);
+        }
+
+        const uint8_t *getValueRaw(size_t *len) const
+        {
+            *len = data_bytes;
+            return data;
+        }
+
+    private:
 		//! Number of bytes in #data
 		uint32_t data_bytes;
 
 		//! Attribute data
-		void* data;
+		uint8_t data[255]; // more or less random length, this won't be enough for the timetable XML, but most likely this client
+                           // won't read such large messages correctly either due to ignoring read()/recv()'s return value and
+                           // network fragmentation
 
-	private:
 		uint16_t m_id;
 	};
 
@@ -270,49 +275,9 @@ namespace zusi
 		{
 		}
 
-		virtual ~Node()
-		{
-			for (Attribute* a_p : attributes)
-				delete a_p;
-
-			for (Node* n_p :  nodes)
-				delete n_p;
-		}
-
-		Node(const Node& o) : m_id(o.m_id)
-		{
-			for (auto it = o.attributes.begin(); it < attributes.end(); ++it)
-			{
-				attributes.push_back(new Attribute(**it));
-			}
-			for (auto it = o.nodes.begin(); it < nodes.end(); ++it)
-			{
-				nodes.push_back(new Node(**it));
-			}
-		}
-
-		Node& operator=(const Node& o)
-		{
-			m_id = o.m_id;
-
-			for (Attribute* a_p : attributes)
-				delete a_p;
-
-			for (Node* n_p : nodes)
-				delete n_p;
-
-			attributes.clear();
-			nodes.clear();
-
-			for (auto it = o.attributes.begin(); it < attributes.end(); ++it)
-				attributes.push_back(new Attribute(**it));
-
-			for (auto it = o.nodes.begin(); it < nodes.end(); ++it)
-				nodes.push_back(new Node(**it));
-
-			return *this;
-
-		}
+		Node(const Node& o) = default;
+        Node(Node &&) = default;
+		Node& operator=(const Node& o) = default;
 
 		bool write(Socket& sock) const;
 		
@@ -325,9 +290,9 @@ namespace zusi
 		}
 
 		//!  Attributes of this node
-		std::vector<Attribute*> attributes;
+		std::vector<Attribute> attributes;
 		//!  Sub-nodes of this node
-		std::vector<Node*> nodes;
+		std::vector<Node> nodes;
 
 	private:
 		uint16_t m_id;
@@ -345,7 +310,7 @@ namespace zusi
 	class FsDataItem
 	{
 	public:
-		FsDataItem(FuehrerstandData id) : m_id(id) {};
+		FsDataItem(FuehrerstandData id) : m_id(id) {}
 
 		//!Append this data item to the specified node
 		virtual void appendTo(Node& node) const = 0;
@@ -376,12 +341,12 @@ namespace zusi
 				return true;
 			
 			return false;
-		};
+		}
 
 		virtual void appendTo(Node& node) const
 		{ 
-			Attribute* att = new zusi::Attribute(getId());
-			att->setValueFloat(m_value);
+            Attribute att{getId()};
+			att.setValue<float>(m_value);
 			node.attributes.push_back(att);
 		}
 
@@ -408,35 +373,18 @@ namespace zusi
 				return true;
 
 			return false;
-		};
+		}
 
 		virtual void appendTo(Node& node) const
 		{
-			Node* sNode = new zusi::Node(getId());
-			
-			Attribute* att = new zusi::Attribute(1);
-			att->setValueUint8('0');
-			sNode->attributes.push_back(att);
+            Node sNode{getId()};
 
-			att = new zusi::Attribute(2);
-			att->setValueUint8(m_licht);
-			sNode->attributes.push_back(att);
-
-			att = new zusi::Attribute(3);
-			att->setValueUint8(m_hupebrems ? 2 : m_hupewarning ? 1 : 0);
-			sNode->attributes.push_back(att);
-
-			att = new zusi::Attribute(4);
-			att->setValueUint8(m_hauptschalter + 1);
-			sNode->attributes.push_back(att);
-			
-			att = new zusi::Attribute(5);
-			att->setValueUint8(m_storschalter + 1);
-			sNode->attributes.push_back(att);
-
-			att = new zusi::Attribute(6);
-			att->setValueUint8(m_luftabsper + 1);
-			sNode->attributes.push_back(att);
+            sNode.attributes.emplace_back(Attribute{1, uint8_t{'0'}});
+            sNode.attributes.emplace_back(Attribute{2, uint8_t{m_licht}});
+            sNode.attributes.emplace_back(Attribute{3, uint8_t{m_hupebrems ? 2 : m_hupewarning ? 1 : 0}});
+            sNode.attributes.emplace_back(Attribute{4, uint8_t{m_hauptschalter + 1}});
+            sNode.attributes.emplace_back(Attribute{5, uint8_t{m_storschalter + 1}});
+            sNode.attributes.emplace_back(Attribute{6, uint8_t{m_luftabsper + 1}});
 
 			node.nodes.push_back(sNode);
 		}
