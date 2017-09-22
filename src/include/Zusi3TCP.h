@@ -40,17 +40,17 @@ namespace zusi {
 enum MsgType { MsgType_Connecting = 1, MsgType_Fahrpult = 2 };
 
 //! Command Node ID - type of sub-nodes of root node
-enum Command {
-  Cmd_HELLO = 1,
-  Cmd_ACK_HELLO = 2,
-  Cmd_NEEDED_DATA = 3,
-  Cmd_ACK_NEEDED_DATA = 4,
-  Cmd_DATA_FTD = 0xA,
-  Cmd_DATA_OPERATION = 0xB,
-  Cmd_DATA_PROG = 0xC,
-  Cmd_INPUT = 0x010A,
-  Cmd_CONTROL = 0x010B,
-  Cmd_GRAPHIC = 0x010C
+enum class Command : uint16_t {
+  HELLO = 1,
+  ACK_HELLO = 2,
+  NEEDED_DATA = 3,
+  ACK_NEEDED_DATA = 4,
+  DATA_FTD = 0xA,
+  DATA_OPERATION = 0xB,
+  DATA_PROG = 0xC,
+  INPUT = 0x010A,
+  CONTROL = 0x010B,
+  GRAPHIC = 0x010C
 };
 
 using FuehrerstandData = uint16_t;
@@ -81,11 +81,11 @@ Fs_Gesamtweg = 25,
 */
 
 //! Program status Data variable ID's
-enum ProgData {
-  Prog_Zugdatei = 1,
-  Prog_Zugnummer,
-  Prog_SimStart,
-  Prog_BuchfahrplanDatei
+enum class ProgData {
+  Zugdatei = 1,
+  Zugnummer,
+  SimStart,
+  BuchfahrplanDatei
 };
 
 //! Abstract interface for a socket
@@ -349,6 +349,7 @@ class Node {
   * @param id Attribute ID
   */
   explicit Node(uint16_t id) : m_id(id) {}
+    explicit Node(Command cmd) : Node(static_cast<uint16_t>(cmd)) {}
 
   Node(const Node& o) = default;
   Node(Node&&) = default;

@@ -120,7 +120,7 @@ bool ClientConnection::connect(const std::string client_id,
   // Recieve ACK_HELLO
   Node hello_ack{receiveMessage()};
   if (hello_ack.nodes.size() != 1 ||
-      hello_ack.nodes[0].getId() != Cmd_ACK_HELLO) {
+      hello_ack.nodes[0].getId() != static_cast<uint16_t>(Command::ACK_HELLO)) /* TODO: Refactor with C++17 */ {
     throw std::runtime_error("Protocol error - invalid response from server");
   } else {
     for (const auto &att : hello_ack.nodes[0].attributes) {
@@ -139,7 +139,7 @@ bool ClientConnection::connect(const std::string client_id,
 
   // Send NEEDED_DATA
   Node needed_data_msg(MsgType_Fahrpult);
-  Node needed{Cmd_NEEDED_DATA};
+  Node needed{Command::NEEDED_DATA};
 
   if (!fs_data.empty()) {
     Node needed_fuehrerstand{0xA};
@@ -155,7 +155,7 @@ bool ClientConnection::connect(const std::string client_id,
   if (!prog_data.empty()) {
     Node needed_prog{0xC};
     for (ProgData prog_id : prog_data) {
-      needed_prog.attributes.emplace_back(Attribute{1, uint16_t{prog_id}});
+      needed_prog.attributes.emplace_back(Attribute{1, uint16_t{static_cast<uint16_t>(prog_id)}});
     }
     needed.nodes.push_back(needed_prog);
   }
@@ -167,7 +167,7 @@ bool ClientConnection::connect(const std::string client_id,
   // Receive ACK_NEEDED_DATA
   Node data_ack{receiveMessage()};
   if (data_ack.nodes.size() != 1 ||
-      data_ack.nodes[0].getId() != Cmd_ACK_NEEDED_DATA) {
+      data_ack.nodes[0].getId() != static_cast<uint16_t>(Command::ACK_NEEDED_DATA)) /* TODO: Refactor with C++17 */ {
     throw std::runtime_error(
         "Protocol error - server refused data subscription");
   }
@@ -179,7 +179,7 @@ bool ClientConnection::sendInput(const In::Taster &taster,
                                  const In::Kommando &kommando,
                                  const In::Aktion &aktion, uint16_t position) {
   Node input_message(MsgType_Fahrpult);
-  Node input{Cmd_INPUT};
+  Node input{Command::INPUT};
 
   Node action{1};
 
@@ -200,7 +200,7 @@ bool ServerConnection::accept() {
   {
     Node hello_msg{receiveMessage()};
     if (hello_msg.nodes.size() != 1 ||
-        hello_msg.nodes[0].getId() != Cmd_HELLO) {
+        hello_msg.nodes[0].getId() != static_cast<uint16_t>(Command::HELLO)) /* TODO: Refactor with C++17 */ {
       throw std::runtime_error("Protocol error - invalid HELLO from client");
     } else {
       for (const Attribute &att : hello_msg.nodes[0].attributes) {
@@ -225,7 +225,7 @@ bool ServerConnection::accept() {
   {
     Node hello_ack_message(MsgType_Connecting);
 
-    zusi::Node hello_ack{Cmd_ACK_HELLO};
+    zusi::Node hello_ack{Command::ACK_HELLO};
 
     zusi::Attribute attVersion{1};
     attVersion.setValueRaw(reinterpret_cast<const uint8_t *>("3.1.2.0"),
@@ -245,7 +245,7 @@ bool ServerConnection::accept() {
   {
     Node needed_data_msg{receiveMessage()};
     if (needed_data_msg.nodes.size() != 1 ||
-        needed_data_msg.nodes[0].getId() != Cmd_NEEDED_DATA) {
+        needed_data_msg.nodes[0].getId() != static_cast<uint16_t>(Command::NEEDED_DATA)) /* TODO: Refactor with C++17 */ {
       throw std::runtime_error(
           "Protocol error - invalid NEEDED_DATA from client");
     }
@@ -275,7 +275,7 @@ bool ServerConnection::accept() {
   {
     Node data_ack_message(MsgType_Fahrpult);
 
-    zusi::Node data_ack{Cmd_ACK_NEEDED_DATA};
+    zusi::Node data_ack{Command::ACK_NEEDED_DATA};
     data_ack.attributes.push_back(Attribute{1, uint8_t{0}});
     data_ack_message.nodes.push_back(data_ack);
 
@@ -289,7 +289,7 @@ bool ServerConnection::sendData(
     std::vector<std::pair<FuehrerstandData, float>> ftd_items) {
   Node data_message(MsgType_Fahrpult);
 
-  zusi::Node data{Cmd_DATA_FTD};
+  zusi::Node data{Command::DATA_FTD};
 
   for (const auto &ftd : ftd_items) {
     if (m_fs_data.count(ftd.first) == 1) {
@@ -309,7 +309,7 @@ bool ServerConnection::sendData(std::vector<FsDataItem *> ftd_items) {
 
   Node data_message(MsgType_Fahrpult);
 
-  zusi::Node data{Cmd_DATA_FTD};
+  zusi::Node data{Command::DATA_FTD};
 
   for (const auto &item : ftd_items)
     if (m_fs_data.count(item->getId()) == 1) item->appendTo(data);

@@ -1,7 +1,6 @@
 cmake_minimum_required (VERSION 3.2)
 project (zusi3tcptest)
 
-include_directories("${PROJECT_SOURCE_DIR}/../src")
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -54,11 +53,12 @@ include_directories(${GTEST_INCLUDE_DIR} "${source_dir}/googlemock/include")
 
 ADD_EXECUTABLE(testzusi3tcp ${SRCS} ../src/Zusi3TCP.cpp)
 
-TARGET_LINK_LIBRARIES(testzusi3tcp libgtest libgmock)
+TARGET_LINK_LIBRARIES(testzusi3tcp zusi3tcp libgtest libgmock)
 
+add_test(zusi3tcp testzusi3tcp)
 # This needs to re-run cmake for each new test case, the beow command
 # should fix this, but is not suppported on my system, or something
-gtest_add_tests(testzusi3tcp "" ${SRCS})
+#gtest_add_tests(testzusi3tcp "" ${SRCS})
 #add_test_suite(testzusi3tcp
 #  LIST_TEST_FLAGS   "--gtest_list_tests"
 #  SELECT_TEST_FLAGS "--gtest_filter=<SECTION><TEST>"
