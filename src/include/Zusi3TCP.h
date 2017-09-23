@@ -29,8 +29,10 @@ SOFTWARE.
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <type_traits>
 
-#include "string.h"  // For memcpy
+#include <string.h>  // For memcpy
 
 #include <chrono>
 
@@ -257,6 +259,88 @@ struct AttribTag<id_, std::string, std::string>
   operator Attribute() const { return att(); }
 };
 
+//! Generic Zusi message node
+class Node {
+ public:
+  //! Constructs an empty node
+  explicit Node() : m_id(0) {}
+
+  /** @brief Constructs an Node
+  * @param id Attribute ID
+  */
+  explicit Node(uint16_t id) : m_id(id) {}
+  explicit Node(Command cmd) : Node(static_cast<uint16_t>(cmd)) {}
+
+  Node(const Node& o) = default;
+  Node(Node&&) = default;
+  Node& operator=(const Node& o) = default;
+
+  //! Get Attribute ID
+  uint16_t getId() const { return m_id; }
+
+  //!  Attributes of this node
+  std::vector<Attribute> attributes;
+  //!  Sub-nodes of this node
+  std::vector<Node> nodes;
+
+ private:
+  uint16_t m_id;
+
+  static const uint32_t NODE_START = 0;
+  static const uint32_t NODE_END = 0xFFFFFFFF;
+};
+
+
+template <uint16_t id_, typename... Atts>
+class ComplexNode {
+    constexpr static auto id = id_;
+    using AttTupleT = std::tuple<Atts...>;
+    AttTupleT atts;
+
+    template<int N>
+    void matchAttribute(const Node &node, std::false_type) {
+    }
+
+    template<int N>
+    void matchAttribute(const Node &node, std::true_type) {
+        int id = std::tuple_element<N - 1, AttTupleT>::type::id;
+        auto att = std::find_if(node.attributes.cbegin(), node.attributes.cend(), [id](const Attribute &att) -> bool {
+            return att.getId() == id;
+        });
+        if (att != node.attributes.cend()) {
+            std::get<N - 1>(atts) = *att;
+        } else {
+            throw std::runtime_error("Attribute not found");
+        }
+        matchAttribute<N-1>(node, std::integral_constant<bool, (N-1 > 0) >{});
+    }
+
+public:
+    ComplexNode() = default;
+
+    ComplexNode(const Node &node) : atts{} {
+        if (id_ != node.getId()) {
+            throw std::runtime_error{"Invalid conversion of attribute"};
+        }
+
+        matchAttribute<std::tuple_size<AttTupleT>::value>(node, std::true_type{});
+    }
+
+    template <typename search>
+    search &getAtt() noexcept {
+        return std::get<search>(atts);
+    }
+
+#if __cpp_lib_apply > 0
+#error Yay a new compiler \o/ we can add this feature easily!
+    Node node() const {
+        Node result{id_};
+        std::apply(/*...*/);
+        return result;
+    }
+#endif
+};
+
 namespace Hello {
 using ProtokollVersion = AttribTag<1, uint16_t>;
 using ClientTyp = AttribTag<2, uint16_t>;
@@ -338,37 +422,6 @@ constexpr In::Aktion AbUp{6};
 constexpr In::Aktion Absolut{7};
 constexpr In::Aktion Absolut1000er{8};
 }
-
-//! Generic Zusi message node
-class Node {
- public:
-  //! Constructs an empty node
-  explicit Node() : m_id(0) {}
-
-  /** @brief Constructs an Node
-  * @param id Attribute ID
-  */
-  explicit Node(uint16_t id) : m_id(id) {}
-    explicit Node(Command cmd) : Node(static_cast<uint16_t>(cmd)) {}
-
-  Node(const Node& o) = default;
-  Node(Node&&) = default;
-  Node& operator=(const Node& o) = default;
-
-  //! Get Attribute ID
-  uint16_t getId() const { return m_id; }
-
-  //!  Attributes of this node
-  std::vector<Attribute> attributes;
-  //!  Sub-nodes of this node
-  std::vector<Node> nodes;
-
- private:
-  uint16_t m_id;
-
-  static const uint32_t NODE_START = 0;
-  static const uint32_t NODE_END = 0xFFFFFFFF;
-};
 
 /**
 @brief Represents an piece of data which is sent as part of DATA_FTD message

@@ -113,6 +113,44 @@ TEST(Node, movableNested) {
     }(std::move(movedMiddle.nodes[0]));
 }
 
+TEST(ComplexNode, simple) {
+    using ComplexTestNode = ComplexNode<23, FS::Geschwindigkeit, FS::DruckHauptlufleitung, FS::UhrzeitStunde>;
+
+   ComplexTestNode testNode;
+
+   FS::UhrzeitStunde &att1 = testNode.getAtt<FS::UhrzeitStunde>();
+   att1.value = 23;
+   FS::UhrzeitStunde att2 = testNode.getAtt<FS::UhrzeitStunde>();
+   EXPECT_EQ(23, att2.value);
+}
+
+TEST(ComplexNode, decode) {
+    using ComplexTestNode = ComplexNode<23, FS::Geschwindigkeit, FS::DruckHauptlufleitung, FS::UhrzeitStunde>;
+
+    Node node{23};
+    node.attributes.emplace_back((FS::Geschwindigkeit{10}).att());
+    node.attributes.emplace_back((FS::UhrzeitStunde{20}).att());
+    node.attributes.emplace_back((FS::DruckHauptlufleitung{30}).att());
+
+    ComplexTestNode complex{node};
+    EXPECT_EQ(10, complex.getAtt<FS::Geschwindigkeit>());
+    EXPECT_EQ(20, complex.getAtt<FS::UhrzeitStunde>());
+    EXPECT_EQ(30, complex.getAtt<FS::DruckHauptlufleitung>());
+}
+
+TEST(ComplexNode, missingAttribute) {
+    using ComplexTestNode = ComplexNode<23, FS::Geschwindigkeit, FS::DruckHauptlufleitung, FS::UhrzeitStunde>;
+
+    Node node{23};
+    node.attributes.emplace_back((FS::Geschwindigkeit{10}).att());
+    node.attributes.emplace_back((FS::UhrzeitStunde{20}).att());
+    // Not there: node.attributes.emplace_back((FS::DruckHauptlufleitung{30}).att());
+
+    EXPECT_ANY_THROW({
+        ComplexTestNode{node};
+    });
+}
+
 /*
  Using Mock stuff would be nice, but I am too stupid to return by pointer
 class MockSocket : public Socket {
