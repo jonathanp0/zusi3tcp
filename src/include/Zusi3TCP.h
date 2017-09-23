@@ -31,6 +31,7 @@ SOFTWARE.
 #include <vector>
 #include <algorithm>
 #include <type_traits>
+#include <tuple>
 
 #include <string.h>  // For memcpy
 
@@ -293,8 +294,10 @@ class Node {
 
 template <uint16_t id_, typename... Atts>
 class ComplexNode {
+public:
     constexpr static auto id = id_;
     using AttTupleT = std::tuple<Atts...>;
+private:
     AttTupleT atts;
 
     template<int N>
@@ -358,6 +361,16 @@ using ZusiVersion = AttribTag<1, std::string>;
 using ZusBerbindungsinfo = AttribTag<2, std::string>;
 }
 
+namespace Sifa {
+/* TODO: For these types enums with the value names might be nice, or constexpr instantiations as with the keyboard */
+using Bauart = AttribTag<1, std::string>;
+using Leuchtmelder = AttribTag<2, uint8_t>;
+using Hupe = AttribTag<3, uint8_t>;
+using Hauptschalter = AttribTag<4, uint8_t>;
+using Stoerschalter = AttribTag<5, uint8_t>;
+using Luftabsperrhahn = AttribTag<6, uint8_t>;
+}
+
 namespace FS {
 using Geschwindigkeit = AttribTag<1, float>;
 using DruckHauptlufleitung = AttribTag<2, float>;
@@ -381,7 +394,7 @@ using UhrzeitDigital = AttribTag<35, float>;
 using AfbEinAus = AttribTag<54, float>;
 using Datum = AttribTag<75, float>;
 using Streckenhoechstgeschwindigkeit = AttribTag<77, float>;
-using Sifa = AttribTag<100, float>;
+using Sifa = ComplexNode<100, zusi::Sifa::Bauart, zusi::Sifa::Leuchtmelder, zusi::Sifa::Hupe, zusi::Sifa::Hauptschalter, zusi::Sifa::Stoerschalter, zusi::Sifa::Luftabsperrhahn>;
 }
 
 namespace In {
