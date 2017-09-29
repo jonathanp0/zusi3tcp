@@ -119,9 +119,9 @@ TEST(ComplexNode, simple) {
    ComplexTestNode testNode;
 
    FS::UhrzeitStunde &att1 = testNode.getAtt<FS::UhrzeitStunde>();
-   att1.value = 23;
+   *att1 = 23;
    FS::UhrzeitStunde att2 = testNode.getAtt<FS::UhrzeitStunde>();
-   EXPECT_EQ(23, att2.value);
+   EXPECT_EQ(23, *att2);
 }
 
 TEST(ComplexNode, decode) {

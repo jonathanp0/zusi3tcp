@@ -206,7 +206,6 @@ struct AttribTag {
   using networktype = NetworkType;
   using type = CPPType;
   constexpr static auto id = id_;
-  type value;
 
   constexpr AttribTag() {}
 
@@ -233,6 +232,8 @@ struct AttribTag {
   }
 
   operator Attribute() const { return att(); }
+protected:
+  type value;
 };
 
 template <uint16_t id_>
@@ -296,8 +297,8 @@ template <uint16_t id_, typename... Atts>
 class ComplexNode {
 public:
     constexpr static auto id = id_;
-    using AttTupleT = std::tuple<Atts...>;
 private:
+    using AttTupleT = std::tuple<Atts...>;
     AttTupleT atts;
 
     template<int N>
@@ -306,7 +307,7 @@ private:
 
     template<int N>
     void matchAttribute(const Node &node, std::true_type) {
-        int id = std::tuple_element<N - 1, AttTupleT>::type::id;
+        constexpr int id = std::tuple_element<N - 1, AttTupleT>::type::id;
         auto att = std::find_if(node.attributes.cbegin(), node.attributes.cend(), [id](const Attribute &att) -> bool {
             return att.getId() == id;
         });
