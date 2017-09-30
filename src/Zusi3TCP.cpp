@@ -82,11 +82,11 @@ bool Connection::writeNode(const Node &node) const {
   m_socket->WriteBytes(&NODE_START, sizeof(NODE_START));
   m_socket->WriteBytes(&id, sizeof(id));
   for (const auto &a_p : node.attributes) {
-      writeAttribute(a_p);
+    writeAttribute(a_p);
   }
 
   for (const Node &n_p : node.nodes) {
-      writeNode(n_p);
+    writeNode(n_p);
   }
   int written = m_socket->WriteBytes(&NODE_END, sizeof(NODE_END));
 
@@ -123,7 +123,9 @@ bool ClientConnection::connect(const std::string &client_id,
   // Recieve ACK_HELLO
   Node hello_ack{receiveMessage()};
   if (hello_ack.nodes.size() != 1 ||
-      hello_ack.nodes[0].getId() != static_cast<uint16_t>(Command::ACK_HELLO)) /* TODO: Refactor with C++17 */ {
+      hello_ack.nodes[0].getId() !=
+          static_cast<uint16_t>(
+              Command::ACK_HELLO)) /* TODO: Refactor with C++17 */ {
     throw std::runtime_error("Protocol error - invalid response from server");
   } else {
     for (const auto &att : hello_ack.nodes[0].attributes) {
@@ -154,13 +156,14 @@ bool ClientConnection::connect(const std::string &client_id,
   }
 
   if (bedienung) {
-      needed.nodes.emplace_back(Node{0xB});
+    needed.nodes.emplace_back(Node{0xB});
   }
 
   if (!prog_data.empty()) {
     Node needed_prog{0xC};
     for (ProgData prog_id : prog_data) {
-      needed_prog.attributes.emplace_back(Attribute{1, uint16_t{static_cast<uint16_t>(prog_id)}});
+      needed_prog.attributes.emplace_back(
+          Attribute{1, uint16_t{static_cast<uint16_t>(prog_id)}});
     }
     needed.nodes.push_back(needed_prog);
   }
@@ -172,7 +175,9 @@ bool ClientConnection::connect(const std::string &client_id,
   // Receive ACK_NEEDED_DATA
   Node data_ack{receiveMessage()};
   if (data_ack.nodes.size() != 1 ||
-      data_ack.nodes[0].getId() != static_cast<uint16_t>(Command::ACK_NEEDED_DATA)) /* TODO: Refactor with C++17 */ {
+      data_ack.nodes[0].getId() !=
+          static_cast<uint16_t>(
+              Command::ACK_NEEDED_DATA)) /* TODO: Refactor with C++17 */ {
     throw std::runtime_error(
         "Protocol error - server refused data subscription");
   }
@@ -205,7 +210,9 @@ bool ServerConnection::accept() {
   {
     Node hello_msg{receiveMessage()};
     if (hello_msg.nodes.size() != 1 ||
-        hello_msg.nodes[0].getId() != static_cast<uint16_t>(Command::HELLO)) /* TODO: Refactor with C++17 */ {
+        hello_msg.nodes[0].getId() !=
+            static_cast<uint16_t>(
+                Command::HELLO)) /* TODO: Refactor with C++17 */ {
       throw std::runtime_error("Protocol error - invalid HELLO from client");
     } else {
       for (const Attribute &att : hello_msg.nodes[0].attributes) {
@@ -250,7 +257,9 @@ bool ServerConnection::accept() {
   {
     Node needed_data_msg{receiveMessage()};
     if (needed_data_msg.nodes.size() != 1 ||
-        needed_data_msg.nodes[0].getId() != static_cast<uint16_t>(Command::NEEDED_DATA)) /* TODO: Refactor with C++17 */ {
+        needed_data_msg.nodes[0].getId() !=
+            static_cast<uint16_t>(
+                Command::NEEDED_DATA)) /* TODO: Refactor with C++17 */ {
       throw std::runtime_error(
           "Protocol error - invalid NEEDED_DATA from client");
     }
@@ -265,7 +274,7 @@ bool ServerConnection::accept() {
 
       for (const Attribute &att : node.attributes) {
         if (att.getId() != 1 || att.getValueLen() != 2) {
-            continue;
+          continue;
         }
 
         uint16_t var_id = att.getValue<uint16_t>();
@@ -308,7 +317,7 @@ bool ServerConnection::sendData(
   data_message.nodes.push_back(data);
 
   if (data.attributes.empty()) {
-      return true;
+    return true;
   }
 
   return sendMessage(data_message);
@@ -316,7 +325,7 @@ bool ServerConnection::sendData(
 
 bool ServerConnection::sendData(std::vector<FsDataItem *> ftd_items) {
   if (ftd_items.empty()) {
-      return true;
+    return true;
   }
 
   Node data_message(MsgType_Fahrpult);
@@ -325,11 +334,11 @@ bool ServerConnection::sendData(std::vector<FsDataItem *> ftd_items) {
 
   for (const auto &item : ftd_items) {
     if (m_fs_data.count(item->getId()) == 1) {
-        item->appendTo(data);
+      item->appendTo(data);
     }
   }
 
   data_message.nodes.push_back(data);
   return sendMessage(data_message);
 }
-} // namespace zusi
+}  // namespace zusi

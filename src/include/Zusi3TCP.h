@@ -23,15 +23,15 @@ SOFTWARE.
 
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <set>
 #include <stdexcept>
 #include <string>
-#include <vector>
-#include <algorithm>
-#include <type_traits>
 #include <tuple>
+#include <type_traits>
+#include <vector>
 
 #include <string.h>  // For memcpy
 
@@ -84,12 +84,7 @@ Fs_Gesamtweg = 25,
 */
 
 //! Program status Data variable ID's
-enum class ProgData {
-  Zugdatei = 1,
-  Zugnummer,
-  SimStart,
-  BuchfahrplanDatei
-};
+enum class ProgData { Zugdatei = 1, Zugnummer, SimStart, BuchfahrplanDatei };
 
 //! Abstract interface for a socket
 class Socket {
@@ -232,7 +227,8 @@ struct AttribTag {
   }
 
   operator Attribute() const { return att(); }
-protected:
+
+ protected:
   type value;
 };
 
@@ -292,56 +288,55 @@ class Node {
   static const uint32_t NODE_END = 0xFFFFFFFF;
 };
 
-
 template <uint16_t id_, typename... Atts>
 class ComplexNode {
-public:
-    constexpr static auto id = id_;
-private:
-    using AttTupleT = std::tuple<Atts...>;
-    AttTupleT atts;
+ public:
+  constexpr static auto id = id_;
 
-    template<int N>
-    void matchAttribute(const Node &node, std::false_type) {
+ private:
+  using AttTupleT = std::tuple<Atts...>;
+  AttTupleT atts;
+
+  template <int N>
+  void matchAttribute(const Node& node, std::false_type) {}
+
+  template <int N>
+  void matchAttribute(const Node& node, std::true_type) {
+    constexpr int id = std::tuple_element<N - 1, AttTupleT>::type::id;
+    auto att = std::find_if(
+        node.attributes.cbegin(), node.attributes.cend(),
+        [id](const Attribute& att) -> bool { return att.getId() == id; });
+    if (att != node.attributes.cend()) {
+      std::get<N - 1>(atts) = *att;
+    } else {
+      throw std::runtime_error("Attribute not found");
+    }
+    matchAttribute<N - 1>(node, std::integral_constant<bool, (N - 1 > 0)>{});
+  }
+
+ public:
+  ComplexNode() = default;
+
+  ComplexNode(const Node& node) : atts{} {
+    if (id_ != node.getId()) {
+      throw std::runtime_error{"Invalid conversion of attribute"};
     }
 
-    template<int N>
-    void matchAttribute(const Node &node, std::true_type) {
-        constexpr int id = std::tuple_element<N - 1, AttTupleT>::type::id;
-        auto att = std::find_if(node.attributes.cbegin(), node.attributes.cend(), [id](const Attribute &att) -> bool {
-            return att.getId() == id;
-        });
-        if (att != node.attributes.cend()) {
-            std::get<N - 1>(atts) = *att;
-        } else {
-            throw std::runtime_error("Attribute not found");
-        }
-        matchAttribute<N-1>(node, std::integral_constant<bool, (N-1 > 0) >{});
-    }
+    matchAttribute<std::tuple_size<AttTupleT>::value>(node, std::true_type{});
+  }
 
-public:
-    ComplexNode() = default;
-
-    ComplexNode(const Node &node) : atts{} {
-        if (id_ != node.getId()) {
-            throw std::runtime_error{"Invalid conversion of attribute"};
-        }
-
-        matchAttribute<std::tuple_size<AttTupleT>::value>(node, std::true_type{});
-    }
-
-    template <typename search>
-    search &getAtt() noexcept {
-        return std::get<search>(atts);
-    }
+  template <typename search>
+  search& getAtt() noexcept {
+    return std::get<search>(atts);
+  }
 
 #if __cpp_lib_apply > 0
 #error Yay a new compiler \o/ we can add this feature easily!
-    Node node() const {
-        Node result{id_};
-        std::apply(/*...*/);
-        return result;
-    }
+  Node node() const {
+    Node result{id_};
+    std::apply(/*...*/);
+    return result;
+  }
 #endif
 };
 
@@ -363,7 +358,8 @@ using ZusBerbindungsinfo = AttribTag<2, std::string>;
 }
 
 namespace Sifa {
-/* TODO: For these types enums with the value names might be nice, or constexpr instantiations as with the keyboard */
+/* TODO: For these types enums with the value names might be nice, or constexpr
+ * instantiations as with the keyboard */
 using Bauart = AttribTag<1, std::string>;
 using Leuchtmelder = AttribTag<2, uint8_t>;
 using Hupe = AttribTag<3, uint8_t>;
@@ -395,7 +391,10 @@ using UhrzeitDigital = AttribTag<35, float>;
 using AfbEinAus = AttribTag<54, float>;
 using Datum = AttribTag<75, float>;
 using Streckenhoechstgeschwindigkeit = AttribTag<77, float>;
-using Sifa = ComplexNode<100, zusi::Sifa::Bauart, zusi::Sifa::Leuchtmelder, zusi::Sifa::Hupe, zusi::Sifa::Hauptschalter, zusi::Sifa::Stoerschalter, zusi::Sifa::Luftabsperrhahn>;
+using Sifa =
+    ComplexNode<100, zusi::Sifa::Bauart, zusi::Sifa::Leuchtmelder,
+                zusi::Sifa::Hupe, zusi::Sifa::Hauptschalter,
+                zusi::Sifa::Stoerschalter, zusi::Sifa::Luftabsperrhahn>;
 }
 
 namespace In {
@@ -579,7 +578,7 @@ class ClientConnection : public Connection {
   * @param bedienung Subscribe to input events if true
   * @return True on success
   */
-  bool connect(const std::string &client_id,
+  bool connect(const std::string& client_id,
                const std::vector<FuehrerstandData>& fs_data,
                const std::vector<ProgData>& prog_data, bool bedienung);
 
