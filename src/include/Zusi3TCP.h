@@ -550,11 +550,11 @@ class Connection {
   Node readNode() const;
   Attribute readAttribute(uint32_t length) const;
 
-  void writeAttribute(const Attribute& attr) const;
+  void writeAttribute(const Attribute& att) const;
 
  protected:
   // TODO: ClientConnecton's calls to this via sendMessage()?
-  bool writeNode(const Node& sock) const;
+  bool writeNode(const Node& node) const;
 
  protected:
   Socket* m_socket;
@@ -579,7 +579,7 @@ class ClientConnection : public Connection {
   * @param bedienung Subscribe to input events if true
   * @return True on success
   */
-  bool connect(const std::string client_id,
+  bool connect(const std::string &client_id,
                const std::vector<FuehrerstandData>& fs_data,
                const std::vector<ProgData>& prog_data, bool bedienung);
 
@@ -587,7 +587,7 @@ class ClientConnection : public Connection {
   * @brief Send an INPUT command
   * @return True on success
   */
-  bool sendInput(const In::Taster& taster, const In::Kommando& kommand,
+  bool sendInput(const In::Taster& taster, const In::Kommando& kommando,
                  const In::Aktion& aktion, uint16_t position);
 
   //! Get the version string supplied by the server

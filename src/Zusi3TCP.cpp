@@ -69,8 +69,9 @@ Attribute Connection::readAttribute(uint32_t length) const {
 Node Connection::receiveMessage() const {
   uint32_t header;
   m_socket->ReadBytes(&header, sizeof(header));
-  if (header != 0)
+  if (header != 0) {
     throw std::domain_error("Error parsing network message header");
+  }
 
   return readNode();
 }
@@ -80,14 +81,16 @@ bool Connection::writeNode(const Node &node) const {
 
   m_socket->WriteBytes(&NODE_START, sizeof(NODE_START));
   m_socket->WriteBytes(&id, sizeof(id));
-  for (const auto &a_p : node.attributes) writeAttribute(a_p);
+  for (const auto &a_p : node.attributes) {
+      writeAttribute(a_p);
+  }
 
-  for (const Node &n_p : node.nodes) writeNode(n_p);
+  for (const Node &n_p : node.nodes) {
+      writeNode(n_p);
+  }
   int written = m_socket->WriteBytes(&NODE_END, sizeof(NODE_END));
 
-  if (written != sizeof(NODE_END)) return false;
-
-  return true;
+  return (written == sizeof(NODE_END));
 }
 
 void Connection::writeAttribute(const Attribute &att) const {
@@ -100,7 +103,7 @@ void Connection::writeAttribute(const Attribute &att) const {
 
 bool Connection::sendMessage(const Node &src) { return writeNode(src); }
 
-bool ClientConnection::connect(const std::string client_id,
+bool ClientConnection::connect(const std::string &client_id,
                                const std::vector<FuehrerstandData> &fs_data,
                                const std::vector<ProgData> &prog_data,
                                bool bedienung) {
@@ -150,7 +153,9 @@ bool ClientConnection::connect(const std::string client_id,
     needed.nodes.push_back(needed_fuehrerstand);
   }
 
-  if (bedienung) needed.nodes.emplace_back(Node{0xB});
+  if (bedienung) {
+      needed.nodes.emplace_back(Node{0xB});
+  }
 
   if (!prog_data.empty()) {
     Node needed_prog{0xC};
@@ -259,14 +264,17 @@ bool ServerConnection::accept() {
       }
 
       for (const Attribute &att : node.attributes) {
-        if (att.getId() != 1 || att.getValueLen() != 2) continue;
+        if (att.getId() != 1 || att.getValueLen() != 2) {
+            continue;
+        }
 
         uint16_t var_id = att.getValue<uint16_t>();
 
-        if (group_id == 0xA)
+        if (group_id == 0xA) {
           m_fs_data.insert(static_cast<zusi::FuehrerstandData>(var_id));
-        else if (group_id == 0xC)
+        } else if (group_id == 0xC) {
           m_prog_data.insert(static_cast<zusi::ProgData>(var_id));
+        }
       }
     }
   }
@@ -276,7 +284,7 @@ bool ServerConnection::accept() {
     Node data_ack_message(MsgType_Fahrpult);
 
     zusi::Node data_ack{Command::ACK_NEEDED_DATA};
-    data_ack.attributes.push_back(Attribute{1, uint8_t{0}});
+    data_ack.attributes.emplace_back(Attribute{1, uint8_t{0}});
     data_ack_message.nodes.push_back(data_ack);
 
     sendMessage(data_ack_message);
@@ -299,22 +307,29 @@ bool ServerConnection::sendData(
 
   data_message.nodes.push_back(data);
 
-  if (data.attributes.empty()) return true;
+  if (data.attributes.empty()) {
+      return true;
+  }
 
   return sendMessage(data_message);
 }
 
 bool ServerConnection::sendData(std::vector<FsDataItem *> ftd_items) {
-  if (ftd_items.empty()) return true;
+  if (ftd_items.empty()) {
+      return true;
+  }
 
   Node data_message(MsgType_Fahrpult);
 
   zusi::Node data{Command::DATA_FTD};
 
-  for (const auto &item : ftd_items)
-    if (m_fs_data.count(item->getId()) == 1) item->appendTo(data);
+  for (const auto &item : ftd_items) {
+    if (m_fs_data.count(item->getId()) == 1) {
+        item->appendTo(data);
+    }
+  }
 
   data_message.nodes.push_back(data);
   return sendMessage(data_message);
 }
-}
+} // namespace zusi
