@@ -113,6 +113,27 @@ TEST(Node, movableNested) {
     }(std::move(movedMiddle.nodes[0]));
 }
 
+TEST(Node, get) {
+    Node n;
+    n.attributes.emplace_back(FS::Geschwindigkeit{1.2f}.att());
+    n.attributes.emplace_back(FS::Gesamtweg{3.4f}.att());
+
+    Node n2{500};
+    using C = ComplexNode<500, FS::DruckBremszylinder>;
+    n2.attributes.emplace_back(FS::DruckBremszylinder{5.6f}.att());
+    n.nodes.push_back(n2);
+
+    auto speed = n.get<FS::Geschwindigkeit>();
+    auto oberstrom = n.get<FS::Oberstrom>();
+    const auto gesamtweg = n.get<FS::Gesamtweg>();
+    auto complex = n.get<C>();
+
+    EXPECT_EQ(**speed, 1.2f);
+    EXPECT_FALSE(oberstrom);
+    EXPECT_EQ(**gesamtweg, 3.4f);
+    EXPECT_EQ(*complex->getAtt<FS::DruckBremszylinder>(), 5.6f);
+}
+
 TEST(ComplexNode, simple) {
     using ComplexTestNode = ComplexNode<23, FS::Geschwindigkeit, FS::DruckHauptlufleitung, FS::UhrzeitStunde>;
 
