@@ -214,6 +214,7 @@ struct AttribTag {
   }
 
   type& operator*() { return value; }
+  const type& operator*() const { return value; }
 
   constexpr operator type() const { return value; }
 
@@ -244,6 +245,8 @@ struct AttribTag<id_, std::string, std::string>
       throw std::runtime_error{"Invalid conversion of attribute"};
     }
   }
+
+  AttribTag() : parentT{} {}
 
   AttribTag(const std::string& str) : parentT{str} {}
 
@@ -276,6 +279,50 @@ class Node {
   //! Get Attribute ID
   uint16_t getId() const { return m_id; }
 
+  template <typename T>
+  class Optional { // TODO: replace with C++17 std::optional; this is baaaaad and nothing but a quick hack for the time being
+      bool hasValue;
+      T val;
+  public:
+      Optional() : hasValue{false} {}
+      Optional(const T& val) : hasValue{true}, val{std::move(val)} {}
+      Optional(T&& val) : hasValue{true}, val{std::move(val)} {}
+
+      operator bool() {
+          return hasValue;
+      }
+      T& value() {
+          return val;
+      }
+      const T& value() const {
+          return val;
+      }
+      T* operator->() {
+          return &value();
+      }
+      const T* operator->() const {
+          return &value();
+      }
+      T& operator*() {
+          return value();
+      }
+      const T& operator*() const {
+          return value();
+      }
+  };
+
+
+  template<typename T>
+  typename std::enable_if<std::is_convertible<T, Attribute>::value, Optional<T>>::type get() const {
+      return getImpl<T>(attributes);
+  }
+  template<typename T>
+  typename std::enable_if<!std::is_convertible<T, Attribute>::value, Optional<T>>::type get() const {
+      /* TODO: We should do a positive check here, but currently ComplexNode has nothing trivially checkable without C++17 */
+      return getImpl<T>(nodes);
+  }
+
+
   //!  Attributes of this node
   std::vector<Attribute> attributes;
   //!  Sub-nodes of this node
@@ -286,6 +333,15 @@ class Node {
 
   static const uint32_t NODE_START = 0;
   static const uint32_t NODE_END = 0xFFFFFFFF;
+
+  template<typename T, typename L>
+  Optional<T> getImpl(const L& list) const {
+      const auto& element = std::find_if(list.cbegin(), list.cend(), [](const auto &e) { return e.getId() == T::id; });
+      if (element == list.cend()) {
+          return Optional<T>{};
+      }
+      return Optional<T>{T{*element}};
+  }
 };
 
 template <uint16_t id_, typename... Atts>
