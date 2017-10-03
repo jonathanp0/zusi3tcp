@@ -308,13 +308,14 @@ class Node {
   template <typename T>
   typename std::enable_if<std::is_convertible<T, Attribute>::value,
                           optional<T>>::type
-  get() const {
+  get() const noexcept {
     return getImpl<T>(attributes);
   }
+
   template <typename T>
   typename std::enable_if<!std::is_convertible<T, Attribute>::value,
                           optional<T>>::type
-  get() const {
+  get() const noexcept {
     /* TODO: We should do a positive check here, but currently ComplexNode has
      * nothing trivially checkable without C++17 */
     return getImpl<T>(nodes);
@@ -332,7 +333,7 @@ class Node {
   static const uint32_t NODE_END = 0xFFFFFFFF;
 
   template <typename T, typename L>
-  optional<T> getImpl(const L& list) const {
+  optional<T> getImpl(const L& list) const noexcept {
     const auto& element =
         std::find_if(list.cbegin(), list.cend(),
                      [](const auto& e) { return e.getId() == T::id; });
@@ -381,7 +382,7 @@ class ComplexNode {
   }
 
   template <typename search>
-  search& getAtt() noexcept {
+  search& get() noexcept {
     return std::get<search>(atts);
   }
 
@@ -514,7 +515,7 @@ class FtdDataMessage : public BaseMessage {
   FtdDataMessage(FtdDataMessage&&) = default;
 
   template <typename T>
-  optional<T> get() const {
+  optional<T> get() const noexcept {
     return root.get<T>();
   }
 };
@@ -527,7 +528,7 @@ class OperationDataMessage : public BaseMessage {
   OperationDataMessage(const OperationDataMessage&) = default;
   OperationDataMessage(OperationDataMessage&&) = default;
 
-  const std::vector<Node>& getNodes() const { return root.nodes; }
+  const std::vector<Node>& getNodes() const noexcept { return root.nodes; }
 };
 
 class ProgDataMessage : public BaseMessage {
@@ -538,7 +539,7 @@ class ProgDataMessage : public BaseMessage {
   ProgDataMessage(const ProgDataMessage&) = default;
   ProgDataMessage(ProgDataMessage&&) = default;
 
-  const std::vector<Node>& getNodes() const { return root.nodes; }
+  const std::vector<Node>& getNodes() const noexcept { return root.nodes; }
 };
 
 //! Parent class for a connection

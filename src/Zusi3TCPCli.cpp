@@ -82,10 +82,11 @@ class PosixSocket : public zusi::Socket {
   }
 };
 
-void parseDataMessage(std::unique_ptr<zusi::BaseMessage>&& msg) {
+void dumpData(std::unique_ptr<zusi::BaseMessage>&& msg) {
   auto ftdmsg = dynamic_cast<const zusi::FtdDataMessage*>(msg.get());
   auto opmsg = dynamic_cast<const zusi::OperationDataMessage*>(msg.get());
   auto progmsg = dynamic_cast<const zusi::ProgDataMessage*>(msg.get());
+
   if (ftdmsg) {
     std::cout << "FTD message\n";
     auto speed = ftdmsg->get<zusi::FS::Geschwindigkeit>();
@@ -100,13 +101,13 @@ void parseDataMessage(std::unique_ptr<zusi::BaseMessage>&& msg) {
 
     auto sifa = ftdmsg->get<zusi::FS::Sifa>();
     if (sifa) {
-      std::cout << "   Sifa Bauart: " << *sifa->getAtt<zusi::Sifa::Bauart>()
+      std::cout << "   Sifa Bauart: " << *sifa->get<zusi::Sifa::Bauart>()
                 << "\n"
                 << "   Sifa Leuchtmelder: "
-                << (*sifa->getAtt<zusi::Sifa::Leuchtmelder>() ? "AN" : "aus")
+                << (*sifa->get<zusi::Sifa::Leuchtmelder>() ? "AN" : "aus")
                 << "\n"
                 << "   Sifa Hupe: "
-                << (*sifa->getAtt<zusi::Sifa::Hupe>() ? "AN" : "aus") << "\n";
+                << (*sifa->get<zusi::Sifa::Hupe>() ? "AN" : "aus") << "\n";
     }
 
   } else if (opmsg) {
@@ -155,12 +156,10 @@ int main() {
 
         do {
           auto msg{con.receiveMessage()};
-          // msg.write(debug_socket); //Print data to the console
 
-          parseDataMessage(std::move(msg));
+          dumpData(std::move(msg));
         } while (true);
 
-        //}
       } catch (std::domain_error err) {
         std::cerr << "Domain Exception: " << err.what() << std::endl;
       } catch (std::runtime_error err) {

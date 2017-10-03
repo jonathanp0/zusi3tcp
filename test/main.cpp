@@ -2,6 +2,7 @@
 #include "gmock/gmock.h"
 #include "Zusi3TCP.h"
 
+namespace {
 using namespace zusi;
 
 TEST(AttribTag, constexpr) {
@@ -131,7 +132,7 @@ TEST(Node, get) {
     EXPECT_EQ(**speed, 1.2f);
     EXPECT_FALSE(oberstrom);
     EXPECT_EQ(**gesamtweg, 3.4f);
-    EXPECT_EQ(*complex->getAtt<FS::DruckBremszylinder>(), 5.6f);
+    EXPECT_EQ(*complex->get<FS::DruckBremszylinder>(), 5.6f);
 }
 
 TEST(ComplexNode, simple) {
@@ -139,9 +140,9 @@ TEST(ComplexNode, simple) {
 
    ComplexTestNode testNode;
 
-   FS::UhrzeitStunde &att1 = testNode.getAtt<FS::UhrzeitStunde>();
+   FS::UhrzeitStunde &att1 = testNode.get<FS::UhrzeitStunde>();
    *att1 = 23;
-   FS::UhrzeitStunde att2 = testNode.getAtt<FS::UhrzeitStunde>();
+   FS::UhrzeitStunde att2 = testNode.get<FS::UhrzeitStunde>();
    EXPECT_EQ(23, *att2);
 }
 
@@ -154,9 +155,9 @@ TEST(ComplexNode, decode) {
     node.attributes.emplace_back((FS::DruckHauptlufleitung{30}).att());
 
     ComplexTestNode complex{node};
-    EXPECT_EQ(10, complex.getAtt<FS::Geschwindigkeit>());
-    EXPECT_EQ(20, complex.getAtt<FS::UhrzeitStunde>());
-    EXPECT_EQ(30, complex.getAtt<FS::DruckHauptlufleitung>());
+    EXPECT_EQ(10, complex.get<FS::Geschwindigkeit>());
+    EXPECT_EQ(20, complex.get<FS::UhrzeitStunde>());
+    EXPECT_EQ(30, complex.get<FS::DruckHauptlufleitung>());
 }
 
 TEST(ComplexNode, missingAttribute) {
@@ -313,7 +314,7 @@ TEST(Connection, readNestedAttribute) {
     // Check attribs
     auto speed = ftdmsg->get<FS::Geschwindigkeit>();
     EXPECT_TRUE(speed);
-    EXPECT_FLOAT_EQ(*speed, 11.83);
+    EXPECT_FLOAT_EQ(*speed, 11.83f);
 
     auto schleudern = ftdmsg->get<FS::LMSchleudern>();
     EXPECT_TRUE(schleudern);
@@ -484,6 +485,8 @@ TEST(ClientConnection, sendInput) {
 
     //EXPECT_STREQ(writtens, expecteds);
     EXPECT_TRUE(writtens == expecteds);
+}
+
 }
 
 int main(int argc, char **argv) {
