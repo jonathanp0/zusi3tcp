@@ -36,7 +36,7 @@ SOFTWARE.
 #include <vector>
 
 #ifdef __has_include
-#if __has_include(<experimental / optional>)
+#if __has_include(<experimental/optional>)
 #include <experimental/optional>
 #elif __has_include(<optional>)
 #include <optional>
@@ -616,6 +616,17 @@ class OperationDataMessage : public BaseMessage {
 
   OperationDataMessage(const OperationDataMessage&) = default;
   OperationDataMessage(OperationDataMessage&&) = default;
+
+  const std::vector<Node>& getNodes() const { return root.nodes; }
+};
+
+class ProgDataMessage : public BaseMessage {
+ public:
+  ProgDataMessage(const Node root) : BaseMessage{std::move(root)} {}
+  ProgDataMessage(Node&& root) : BaseMessage{root} {}
+
+  ProgDataMessage(const ProgDataMessage&) = default;
+  ProgDataMessage(ProgDataMessage&&) = default;
 
   const std::vector<Node>& getNodes() const { return root.nodes; }
 };

@@ -90,7 +90,7 @@ std::unique_ptr<BaseMessage> Connection::receiveMessage() const {
   case static_cast<uint16_t>(zusi::Command::DATA_OPERATION):
       return std::make_unique<OperationDataMessage>(root.nodes[0]);
   case static_cast<uint16_t>(zusi::Command::DATA_PROG):
-
+      return std::make_unique<ProgDataMessage>(root.nodes[0]);
   default:
       throw std::domain_error("Invalid command");
   }
