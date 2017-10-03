@@ -25,6 +25,7 @@ SOFTWARE.
 #include <cstdint>
 #include <cstring>
 #include <stdexcept>
+#include <memory>
 
 static const uint32_t NODE_START = 0;
 static const uint32_t NODE_END = 0xFFFFFFFF;
@@ -66,7 +67,7 @@ Attribute Connection::readAttribute(uint32_t length) const {
   return att;
 }
 
-Node Connection::receiveMessage() const {
+Node Connection::readNodeWithHeader() const {
   uint32_t header;
   m_socket->ReadBytes(&header, sizeof(header));
   if (header != 0) {
@@ -74,6 +75,26 @@ Node Connection::receiveMessage() const {
   }
 
   return readNode();
+}
+
+
+std::unique_ptr<BaseMessage> Connection::receiveMessage() const {
+  auto root{readNodeWithHeader()};
+  if (root.getId() != zusi::MsgType_Fahrpult) {
+      throw std::domain_error("Application type reported by server is not Fahrpult");
+  }
+
+  switch (root.nodes[0].getId()) {
+  case static_cast<uint16_t>(zusi::Command::DATA_FTD):
+      return std::make_unique<FtdDataMessage>(root.nodes[0]);
+  case static_cast<uint16_t>(zusi::Command::DATA_OPERATION):
+      return std::make_unique<OperationDataMessage>(root.nodes[0]);
+  case static_cast<uint16_t>(zusi::Command::DATA_PROG):
+
+  default:
+      throw std::domain_error("Invalid command");
+  }
+
 }
 
 bool Connection::writeNode(const Node &node) const {
@@ -121,7 +142,7 @@ bool ClientConnection::connect(const std::string &client_id,
   writeNode(hello_message);
 
   // Recieve ACK_HELLO
-  Node hello_ack{receiveMessage()};
+  Node hello_ack{readNodeWithHeader()};
   if (hello_ack.nodes.size() != 1 ||
       hello_ack.nodes[0].getId() !=
           static_cast<uint16_t>(
@@ -173,7 +194,7 @@ bool ClientConnection::connect(const std::string &client_id,
   writeNode(needed_data_msg);
 
   // Receive ACK_NEEDED_DATA
-  Node data_ack{receiveMessage()};
+  Node data_ack{readNodeWithHeader()};
   if (data_ack.nodes.size() != 1 ||
       data_ack.nodes[0].getId() !=
           static_cast<uint16_t>(
@@ -203,142 +224,5 @@ bool ClientConnection::sendInput(const In::Taster &taster,
   input_message.nodes.push_back(input);
 
   return sendMessage(input_message);
-}
-
-bool ServerConnection::accept() {
-  // Recieve HELLO
-  {
-    Node hello_msg{receiveMessage()};
-    if (hello_msg.nodes.size() != 1 ||
-        hello_msg.nodes[0].getId() !=
-            static_cast<uint16_t>(
-                Command::HELLO)) /* TODO: Refactor with C++17 */ {
-      throw std::runtime_error("Protocol error - invalid HELLO from client");
-    } else {
-      for (const Attribute &att : hello_msg.nodes[0].attributes) {
-        size_t len;
-        const char *data =
-            reinterpret_cast<const char *>(att.getValueRaw(&len));
-        switch (att.getId()) {
-          case 3:
-            m_clientName = std::string(data, len);
-            break;
-          case 4:
-            m_clientVersion = std::string(data, len);
-            break;
-          default:
-            break;
-        }
-      }
-    }
-  }
-
-  // Send hello ack
-  {
-    Node hello_ack_message(MsgType_Connecting);
-
-    zusi::Node hello_ack{Command::ACK_HELLO};
-
-    zusi::Attribute attVersion{1};
-    attVersion.setValueRaw(reinterpret_cast<const uint8_t *>("3.1.2.0"),
-                           sizeof("3.1.2.0"));
-    hello_ack.attributes.push_back(attVersion);
-
-    hello_ack.attributes.emplace_back(Attribute{2, uint8_t{'0'}});
-
-    hello_ack.attributes.emplace_back(Attribute{3, uint8_t{0}});
-
-    hello_ack_message.nodes.push_back(hello_ack);
-
-    sendMessage(hello_ack_message);
-  }
-
-  // Receive NEEDED_DATA
-  {
-    Node needed_data_msg{receiveMessage()};
-    if (needed_data_msg.nodes.size() != 1 ||
-        needed_data_msg.nodes[0].getId() !=
-            static_cast<uint16_t>(
-                Command::NEEDED_DATA)) /* TODO: Refactor with C++17 */ {
-      throw std::runtime_error(
-          "Protocol error - invalid NEEDED_DATA from client");
-    }
-
-    for (const zusi::Node &node : needed_data_msg.nodes[0].nodes) {
-      uint16_t group_id = node.getId();
-
-      if (group_id == 0xB) {
-        m_bedienung = true;
-        continue;
-      }
-
-      for (const Attribute &att : node.attributes) {
-        if (att.getId() != 1 || att.getValueLen() != 2) {
-          continue;
-        }
-
-        uint16_t var_id = att.getValue<uint16_t>();
-
-        if (group_id == 0xA) {
-          m_fs_data.insert(static_cast<zusi::FuehrerstandData>(var_id));
-        } else if (group_id == 0xC) {
-          m_prog_data.insert(static_cast<zusi::ProgData>(var_id));
-        }
-      }
-    }
-  }
-
-  // Send ACK_NEEDED_DATA
-  {
-    Node data_ack_message(MsgType_Fahrpult);
-
-    zusi::Node data_ack{Command::ACK_NEEDED_DATA};
-    data_ack.attributes.emplace_back(Attribute{1, uint8_t{0}});
-    data_ack_message.nodes.push_back(data_ack);
-
-    sendMessage(data_ack_message);
-  }
-
-  return true;
-}
-
-bool ServerConnection::sendData(
-    std::vector<std::pair<FuehrerstandData, float>> ftd_items) {
-  Node data_message(MsgType_Fahrpult);
-
-  zusi::Node data{Command::DATA_FTD};
-
-  for (const auto &ftd : ftd_items) {
-    if (m_fs_data.count(ftd.first) == 1) {
-      data.attributes.emplace_back(Attribute{ftd.first, float{ftd.second}});
-    }
-  }
-
-  data_message.nodes.push_back(data);
-
-  if (data.attributes.empty()) {
-    return true;
-  }
-
-  return sendMessage(data_message);
-}
-
-bool ServerConnection::sendData(std::vector<FsDataItem *> ftd_items) {
-  if (ftd_items.empty()) {
-    return true;
-  }
-
-  Node data_message(MsgType_Fahrpult);
-
-  zusi::Node data{Command::DATA_FTD};
-
-  for (const auto &item : ftd_items) {
-    if (m_fs_data.count(item->getId()) == 1) {
-      item->appendTo(data);
-    }
-  }
-
-  data_message.nodes.push_back(data);
-  return sendMessage(data_message);
 }
 }  // namespace zusi

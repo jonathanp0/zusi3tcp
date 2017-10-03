@@ -9,11 +9,21 @@ else()
     set ( HEADERS include/Zusi3TCP.h )
 endif()
 
+set ( SERVER_SOURCES ${SOURCES} serverconnection.cpp )
+set ( SERVER_HEADERS ${HEADERS} include/serverconnection.h )
 
 add_library(zusi3tcp  ${SOURCES} ${HEADERS} )
 target_link_libraries(zusi3tcp ${WINDOWS_LIB} )
 
+add_library(zusi3tcpserver  ${SERVER_SOURCES} ${SERVER_HEADERS} )
+target_link_libraries(zusi3tcp ${WINDOWS_LIB} )
+
 target_include_directories(zusi3tcp PUBLIC
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+	PRIVATE src)
+
+target_include_directories(zusi3tcpserver PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 	PRIVATE src)

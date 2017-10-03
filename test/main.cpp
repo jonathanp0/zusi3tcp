@@ -251,7 +251,7 @@ TEST(Connection, readSingleNode) {
     FakeSocket sock{data, sizeof(data)-1};
     Connection conn{&sock};
 
-    Node n {conn.receiveMessage()};
+    Node n {conn.readNodeWithHeader()};
     EXPECT_EQ(n.getId(), 1);
     EXPECT_EQ(n.attributes.size(), 0);
     EXPECT_EQ(n.nodes.size(), 0);
@@ -273,7 +273,7 @@ TEST(Connection, readNestedNode) {
     FakeSocket sock{data, sizeof(data)-1};
     Connection conn{&sock};
 
-    Node n {conn.receiveMessage()};
+    Node n {conn.readNodeWithHeader()};
     EXPECT_FALSE(sock.DataToRead());
     EXPECT_EQ(n.getId(), 1);
     EXPECT_EQ(n.attributes.size(), 0);
@@ -304,26 +304,20 @@ TEST(Connection, readNestedAttribute) {
     FakeSocket sock{data, sizeof(data)-1};
     Connection conn{&sock};
 
-    Node n {conn.receiveMessage()};
+    const auto msg{conn.receiveMessage()};
     EXPECT_FALSE(sock.DataToRead());
 
-    // Check root node
-    EXPECT_EQ(n.getId(), 0x02);
-    EXPECT_EQ(n.attributes.size(), 0);
-    EXPECT_EQ(n.nodes.size(), 1);
-
-    // Check child node
-    Node ftdNode{n.nodes[0]};
-    EXPECT_EQ(ftdNode.getId(), 0x0A);
-    EXPECT_EQ(ftdNode.attributes.size(), 2);
-    EXPECT_EQ(ftdNode.nodes.size(), 0);
+    auto ftdmsg = dynamic_cast<const FtdDataMessage*>(msg.get());
+    EXPECT_TRUE(ftdmsg);
 
     // Check attribs
-    FS::Geschwindigkeit speed{ftdNode.attributes[0]};
-    EXPECT_FLOAT_EQ(speed, 11.83);
+    auto speed = ftdmsg->get<FS::Geschwindigkeit>();
+    EXPECT_TRUE(speed);
+    EXPECT_FLOAT_EQ(*speed, 11.83);
 
-    FS::LMSchleudern schleuder{ftdNode.attributes[1]};
-    EXPECT_FALSE(schleuder);
+    auto schleudern = ftdmsg->get<FS::LMSchleudern>();
+    EXPECT_TRUE(schleudern);
+    EXPECT_FALSE(*schleudern);
 }
 
 static std::string ToHex(const std::string& s, bool upper_case = true)

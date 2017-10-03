@@ -25,7 +25,9 @@ SOFTWARE.
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstdint>
+#include <memory>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -33,12 +35,34 @@ SOFTWARE.
 #include <type_traits>
 #include <vector>
 
+#ifdef __has_include
+#  if __has_include(<experimental/optional>)
+#    include <experimental/optional>
+#  elif __has_include(<optional>)
+#    include<optional>
+#  else
+#     error "Missing <optional>"
+#  endif
+#else
+#  error "Missing __has_include"
+#endif
+
 #include <string.h>  // For memcpy
 
-#include <chrono>
 
 //! Zusi Namespace
 namespace zusi {
+
+#if __cpp_lib_experimental_optional
+  using std::experimental::optional;
+  using std::experimental::make_optional;
+#elif __cpp_lib_optional
+  using std::optional;
+  using std::make_optional;
+#else
+#  error "No usable optional"
+#endif
+
 //! Message Type Node ID - used for root node of message
 enum MsgType { MsgType_Connecting = 1, MsgType_Fahrpult = 2 };
 
@@ -115,6 +139,8 @@ class Socket {
   virtual bool DataToRead() = 0;
 };
 
+
+namespace {
 /**
 * @brief Generic Zusi message attribute.
 * Data is owned by the class
@@ -195,6 +221,7 @@ class Attribute {
 
   uint16_t m_id;
 };
+}
 
 template <uint16_t id_, typename NetworkType, typename CPPType = NetworkType>
 struct AttribTag {
@@ -279,45 +306,13 @@ class Node {
   //! Get Attribute ID
   uint16_t getId() const { return m_id; }
 
-  template <typename T>
-  class Optional { // TODO: replace with C++17 std::optional; this is baaaaad and nothing but a quick hack for the time being
-      bool hasValue;
-      T val;
-  public:
-      Optional() : hasValue{false} {}
-      Optional(const T& val) : hasValue{true}, val{std::move(val)} {}
-      Optional(T&& val) : hasValue{true}, val{std::move(val)} {}
-
-      operator bool() {
-          return hasValue;
-      }
-      T& value() {
-          return val;
-      }
-      const T& value() const {
-          return val;
-      }
-      T* operator->() {
-          return &value();
-      }
-      const T* operator->() const {
-          return &value();
-      }
-      T& operator*() {
-          return value();
-      }
-      const T& operator*() const {
-          return value();
-      }
-  };
-
 
   template<typename T>
-  typename std::enable_if<std::is_convertible<T, Attribute>::value, Optional<T>>::type get() const {
+  typename std::enable_if<std::is_convertible<T, Attribute>::value, optional<T>>::type get() const {
       return getImpl<T>(attributes);
   }
   template<typename T>
-  typename std::enable_if<!std::is_convertible<T, Attribute>::value, Optional<T>>::type get() const {
+  typename std::enable_if<!std::is_convertible<T, Attribute>::value, optional<T>>::type get() const {
       /* TODO: We should do a positive check here, but currently ComplexNode has nothing trivially checkable without C++17 */
       return getImpl<T>(nodes);
   }
@@ -335,12 +330,12 @@ class Node {
   static const uint32_t NODE_END = 0xFFFFFFFF;
 
   template<typename T, typename L>
-  Optional<T> getImpl(const L& list) const {
+  optional<T> getImpl(const L& list) const {
       const auto& element = std::find_if(list.cbegin(), list.cend(), [](const auto &e) { return e.getId() == T::id; });
       if (element == list.cend()) {
-          return Optional<T>{};
+          return optional<T>{};
       }
-      return Optional<T>{T{*element}};
+      return make_optional<T>(*element);
   }
 };
 
@@ -492,12 +487,12 @@ constexpr In::Aktion Absolut{7};
 constexpr In::Aktion Absolut1000er{8};
 }
 
+#ifdef USE_OLD_FSDATAITEM
 /**
 @brief Represents an piece of data which is sent as part of DATA_FTD message
 
 It should be comparable so that the application can check if the data has
-changed
-before transmitting.
+changed before transmitting.
 */
 class FsDataItem {
  public:
@@ -580,6 +575,48 @@ class SifaFsDataItem : public FsDataItem {
   bool m_licht = false, m_hupewarning = false, m_hupebrems = false,
        m_hauptschalter = true, m_storschalter = true, m_luftabsper = true;
 };
+#endif
+
+class BaseMessage {
+protected:
+    const Node root;
+
+public:
+    BaseMessage(const Node root) : root{std::move(root)} {}
+    BaseMessage(Node&& root) : root{std::move(root)} {}
+
+    BaseMessage(const BaseMessage&) = default;
+    BaseMessage(BaseMessage&&) = default;
+
+    virtual ~BaseMessage() {}
+};
+
+class FtdDataMessage : public BaseMessage {
+public:
+    FtdDataMessage(const Node root) : BaseMessage{std::move(root)} {}
+    FtdDataMessage(Node&& root) : BaseMessage{root} {}
+
+    FtdDataMessage(const FtdDataMessage&) = default;
+    FtdDataMessage(FtdDataMessage&&) = default;
+
+    template<typename T>
+    optional<T> get() const {
+        return root.get<T>();
+    }
+};
+
+class OperationDataMessage : public BaseMessage {
+public:
+    OperationDataMessage(const Node root) : BaseMessage{std::move(root)} {}
+    OperationDataMessage(Node&& root) : BaseMessage{root} {}
+
+    OperationDataMessage(const OperationDataMessage&) = default;
+    OperationDataMessage(OperationDataMessage&&) = default;
+
+    const std::vector<Node> &getNodes() const {
+        return root.nodes;
+    }
+};
 
 //! Parent class for a connection
 class Connection {
@@ -593,7 +630,7 @@ class Connection {
   virtual ~Connection() {}
 
   //! Receive a message
-  Node receiveMessage() const;
+  std::unique_ptr<zusi::BaseMessage> receiveMessage() const;
 
   //! Send a message
   bool sendMessage(const Node& src);
@@ -601,6 +638,7 @@ class Connection {
   //! Check if there is data read
   bool dataAvailable() { return m_socket->DataToRead(); }
 
+  Node readNodeWithHeader() const;
  private:
   Node readNode() const;
   Attribute readAttribute(uint32_t length) const;
@@ -656,42 +694,4 @@ class ClientConnection : public Connection {
   std::string m_connectionInfo;
 };
 
-//! A Zusi Server emulator
-class ServerConnection : public Connection {
- public:
-  ServerConnection(Socket* socket) : Connection(socket), m_bedienung(false) {}
-
-  virtual ~ServerConnection() {}
-
-  //! Run connection handshake with client
-  bool accept();
-
-  /**
-  * @brief Send FuehrerstandData updates to the client
-  *
-  * Only data that was requested by the client will actually be sent
-  */
-  bool sendData(std::vector<std::pair<FuehrerstandData, float>> ftd_items);
-
-  /**
-  * @brief Send FuehrerstandData updates to the client
-  *
-  * Only data that was requested by the client will actually be sent
-  */
-  bool sendData(std::vector<FsDataItem*> ftd_items);
-
-  //! Get the version string supplied by the client
-  std::string getClientVersion() { return m_clientVersion; }
-
-  //! Get the connection info string supplied by the client
-  std::string getClientName() { return m_clientName; }
-
- private:
-  std::string m_clientVersion;
-  std::string m_clientName;
-
-  std::set<FuehrerstandData> m_fs_data;
-  std::set<ProgData> m_prog_data;
-  bool m_bedienung;
-};
 }
