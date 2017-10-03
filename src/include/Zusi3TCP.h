@@ -36,31 +36,30 @@ SOFTWARE.
 #include <vector>
 
 #ifdef __has_include
-#  if __has_include(<experimental/optional>)
-#    include <experimental/optional>
-#  elif __has_include(<optional>)
-#    include<optional>
-#  else
-#     error "Missing <optional>"
-#  endif
+#if __has_include(<experimental / optional>)
+#include <experimental/optional>
+#elif __has_include(<optional>)
+#include <optional>
 #else
-#  error "Missing __has_include"
+#error "Missing <optional>"
+#endif
+#else
+#error "Missing __has_include"
 #endif
 
 #include <string.h>  // For memcpy
-
 
 //! Zusi Namespace
 namespace zusi {
 
 #if __cpp_lib_experimental_optional
-  using std::experimental::optional;
-  using std::experimental::make_optional;
+using std::experimental::optional;
+using std::experimental::make_optional;
 #elif __cpp_lib_optional
-  using std::optional;
-  using std::make_optional;
+using std::optional;
+using std::make_optional;
 #else
-#  error "No usable optional"
+#error "No usable optional"
 #endif
 
 //! Message Type Node ID - used for root node of message
@@ -139,7 +138,6 @@ class Socket {
   virtual bool DataToRead() = 0;
 };
 
-
 namespace {
 /**
 * @brief Generic Zusi message attribute.
@@ -157,7 +155,8 @@ class Attribute {
       : data_bytes(0), data{0}, m_id(id) {}
 
   template <typename T>
-  Attribute(uint16_t id, T value) : data_bytes(0), data{0}, m_id(id) {
+  Attribute(uint16_t id, T value)
+      : data_bytes(0), data{0}, m_id(id) {
     setValue<T>(value);
   }
 
@@ -306,17 +305,20 @@ class Node {
   //! Get Attribute ID
   uint16_t getId() const { return m_id; }
 
-
-  template<typename T>
-  typename std::enable_if<std::is_convertible<T, Attribute>::value, optional<T>>::type get() const {
-      return getImpl<T>(attributes);
+  template <typename T>
+  typename std::enable_if<std::is_convertible<T, Attribute>::value,
+                          optional<T>>::type
+  get() const {
+    return getImpl<T>(attributes);
   }
-  template<typename T>
-  typename std::enable_if<!std::is_convertible<T, Attribute>::value, optional<T>>::type get() const {
-      /* TODO: We should do a positive check here, but currently ComplexNode has nothing trivially checkable without C++17 */
-      return getImpl<T>(nodes);
+  template <typename T>
+  typename std::enable_if<!std::is_convertible<T, Attribute>::value,
+                          optional<T>>::type
+  get() const {
+    /* TODO: We should do a positive check here, but currently ComplexNode has
+     * nothing trivially checkable without C++17 */
+    return getImpl<T>(nodes);
   }
-
 
   //!  Attributes of this node
   std::vector<Attribute> attributes;
@@ -329,13 +331,15 @@ class Node {
   static const uint32_t NODE_START = 0;
   static const uint32_t NODE_END = 0xFFFFFFFF;
 
-  template<typename T, typename L>
+  template <typename T, typename L>
   optional<T> getImpl(const L& list) const {
-      const auto& element = std::find_if(list.cbegin(), list.cend(), [](const auto &e) { return e.getId() == T::id; });
-      if (element == list.cend()) {
-          return optional<T>{};
-      }
-      return make_optional<T>(*element);
+    const auto& element =
+        std::find_if(list.cbegin(), list.cend(),
+                     [](const auto& e) { return e.getId() == T::id; });
+    if (element == list.cend()) {
+      return optional<T>{};
+    }
+    return make_optional<T>(*element);
   }
 };
 
@@ -578,44 +582,42 @@ class SifaFsDataItem : public FsDataItem {
 #endif
 
 class BaseMessage {
-protected:
-    const Node root;
+ protected:
+  const Node root;
 
-public:
-    BaseMessage(const Node root) : root{std::move(root)} {}
-    BaseMessage(Node&& root) : root{std::move(root)} {}
+ public:
+  BaseMessage(const Node root) : root{std::move(root)} {}
+  BaseMessage(Node&& root) : root{std::move(root)} {}
 
-    BaseMessage(const BaseMessage&) = default;
-    BaseMessage(BaseMessage&&) = default;
+  BaseMessage(const BaseMessage&) = default;
+  BaseMessage(BaseMessage&&) = default;
 
-    virtual ~BaseMessage() {}
+  virtual ~BaseMessage() {}
 };
 
 class FtdDataMessage : public BaseMessage {
-public:
-    FtdDataMessage(const Node root) : BaseMessage{std::move(root)} {}
-    FtdDataMessage(Node&& root) : BaseMessage{root} {}
+ public:
+  FtdDataMessage(const Node root) : BaseMessage{std::move(root)} {}
+  FtdDataMessage(Node&& root) : BaseMessage{root} {}
 
-    FtdDataMessage(const FtdDataMessage&) = default;
-    FtdDataMessage(FtdDataMessage&&) = default;
+  FtdDataMessage(const FtdDataMessage&) = default;
+  FtdDataMessage(FtdDataMessage&&) = default;
 
-    template<typename T>
-    optional<T> get() const {
-        return root.get<T>();
-    }
+  template <typename T>
+  optional<T> get() const {
+    return root.get<T>();
+  }
 };
 
 class OperationDataMessage : public BaseMessage {
-public:
-    OperationDataMessage(const Node root) : BaseMessage{std::move(root)} {}
-    OperationDataMessage(Node&& root) : BaseMessage{root} {}
+ public:
+  OperationDataMessage(const Node root) : BaseMessage{std::move(root)} {}
+  OperationDataMessage(Node&& root) : BaseMessage{root} {}
 
-    OperationDataMessage(const OperationDataMessage&) = default;
-    OperationDataMessage(OperationDataMessage&&) = default;
+  OperationDataMessage(const OperationDataMessage&) = default;
+  OperationDataMessage(OperationDataMessage&&) = default;
 
-    const std::vector<Node> &getNodes() const {
-        return root.nodes;
-    }
+  const std::vector<Node>& getNodes() const { return root.nodes; }
 };
 
 //! Parent class for a connection
@@ -639,6 +641,7 @@ class Connection {
   bool dataAvailable() { return m_socket->DataToRead(); }
 
   Node readNodeWithHeader() const;
+
  private:
   Node readNode() const;
   Attribute readAttribute(uint32_t length) const;
@@ -693,5 +696,4 @@ class ClientConnection : public Connection {
   std::string m_zusiVersion;
   std::string m_connectionInfo;
 };
-
 }
