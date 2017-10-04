@@ -382,6 +382,11 @@ class ComplexNode {
   }
 
   template <typename search>
+  const search& get() const noexcept {
+    return std::get<search>(atts);
+  }
+
+  template <typename search>
   search& get() noexcept {
     return std::get<search>(atts);
   }
@@ -592,13 +597,46 @@ class FtdDataMessage : public BaseMessage {
 
 class OperationDataMessage : public BaseMessage {
  public:
+  using BetaetigungT = ComplexNode<1, In::Taster, In::Kommando, In::Aktion, In::Position, In::Spezial>;
+  class iterator {
+      using InnerT = std::vector<Node>::const_iterator;
+      InnerT inner, end;
+  public:
+      // TODO: When dropping the filtering in operator++() the end can be removed
+      iterator(InnerT inner, InnerT end) : inner(inner), end(end) {}
+
+      bool operator==(const iterator& other) const {
+          return inner == other.inner;
+      }
+      bool operator!=(const iterator& other) const {
+          return inner != other.inner;
+      }
+      iterator operator++() {
+          ++inner;
+          inner = std::find_if_not(inner, end, [](auto it) { return it.getId() == 2; });
+          return iterator{inner, end};
+      }
+      BetaetigungT operator*() const {
+          return BetaetigungT{*inner};
+      }
+  };
+
   OperationDataMessage(const Node root) : BaseMessage{std::move(root)} {}
   OperationDataMessage(Node&& root) : BaseMessage{root} {}
 
   OperationDataMessage(const OperationDataMessage&) = default;
   OperationDataMessage(OperationDataMessage&&) = default;
 
-  const std::vector<Node>& getNodes() const noexcept { return root.nodes; }
+  iterator begin() const {
+      return iterator{std::find_if_not(root.nodes.begin(), root.nodes.end(), [](auto it) { return it.getId() == 2; }), root.nodes.end()};
+  }
+  iterator end() const {
+      return iterator{root.nodes.end(), root.nodes.end()};
+  }
+
+  decltype(root.nodes.size()) size() {
+      return root.nodes.size();
+  }
 };
 
 class ProgDataMessage : public BaseMessage {

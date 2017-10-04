@@ -39,6 +39,13 @@ TEST(AttribTag, writeableByRef) {
     EXPECT_EQ(static_cast<int>(min), 45);
 }
 
+TEST(AttribTag, size) {
+    using FloatAttrib = AttribTag<1, float>;
+    EXPECT_EQ(sizeof(FloatAttrib), sizeof(float));
+    EXPECT_EQ(sizeof(AttribTag<1, float, bool>), sizeof(bool));
+    EXPECT_EQ(sizeof(AttribTag<1, int64_t>), sizeof(int64_t));
+}
+
 TEST(AttribTag, string) {
     static const std::string v{"1.2.3.4"};
 
@@ -485,6 +492,107 @@ TEST(ClientConnection, sendInput) {
 
     //EXPECT_STREQ(writtens, expecteds);
     EXPECT_TRUE(writtens == expecteds);
+}
+
+TEST(OperationDataMessage, iteratorEmpty) {
+    Node opnode{0x0b};
+
+    for (auto bedienung : OperationDataMessage{opnode}) {
+        EXPECT_FALSE(bedienung.id);
+    }
+}
+TEST(OperationDataMessage, iteratorNotEmpty) {
+    Node input1{0x01};
+    input1.attributes.push_back(Taster::AFB);
+    input1.attributes.push_back(Kommando::FahrschalterAb_Up);
+    input1.attributes.push_back(Aktion::AufUp);
+    input1.attributes.push_back(In::Position{0});
+    input1.attributes.push_back(In::Spezial{0});
+
+    Node input2{0x01};
+    input2.attributes.push_back(Taster::Hauptschalter);
+    input2.attributes.push_back(Kommando::PfeifeDown);
+    input2.attributes.push_back(Aktion::Down);
+    input2.attributes.push_back(In::Position{1});
+    input2.attributes.push_back(In::Spezial{1});
+
+    Node opnode{0x0b};
+    opnode.nodes.push_back(input1);
+    opnode.nodes.push_back(input2);
+
+    const auto opmsg = OperationDataMessage{opnode};
+    int count_b{0};
+    for (auto it = opmsg.begin(); it != opmsg.end(); ++it) {
+        ASSERT_LE(++count_b, 2);
+    }
+    EXPECT_EQ(count_b, 2);
+
+    int count{0};
+    for (auto bedienung : OperationDataMessage{opnode}) {
+        ASSERT_LE(++count, 2);
+        if (count == 1) {
+            EXPECT_EQ(bedienung.get<In::Taster>(), Taster::AFB);
+            EXPECT_EQ(bedienung.get<In::Kommando>(), Kommando::FahrschalterAb_Up);
+            EXPECT_EQ(bedienung.get<In::Aktion>(), Aktion::AufUp);
+            EXPECT_EQ(*bedienung.get<In::Position>(), 0);
+            EXPECT_EQ(*bedienung.get<In::Spezial>(), 0);
+        } else if (count == 2) {
+            EXPECT_EQ(bedienung.get<In::Taster>(), Taster::Hauptschalter);
+            EXPECT_EQ(bedienung.get<In::Kommando>(), Kommando::PfeifeDown);
+            EXPECT_EQ(bedienung.get<In::Aktion>(), Aktion::Down);
+            EXPECT_EQ(*bedienung.get<In::Position>(), 1);
+            EXPECT_EQ(*bedienung.get<In::Spezial>(), 1);
+        }
+    }
+    EXPECT_EQ(count, 2);
+}
+
+TEST(OperationDataMessage, TODOignoreKombiHebelForNow) { // TODO!
+    Node input0{0x02};
+
+    Node input1{0x01};
+    input1.attributes.push_back(Taster::AFB);
+    input1.attributes.push_back(Kommando::FahrschalterAb_Up);
+    input1.attributes.push_back(Aktion::AufUp);
+    input1.attributes.push_back(In::Position{0});
+    input1.attributes.push_back(In::Spezial{0});
+
+    Node input2{0x02};
+
+    Node input3{0x01};
+    input3.attributes.push_back(Taster::Hauptschalter);
+    input3.attributes.push_back(Kommando::PfeifeDown);
+    input3.attributes.push_back(Aktion::Down);
+    input3.attributes.push_back(In::Position{1});
+    input3.attributes.push_back(In::Spezial{1});
+
+    Node input4{0x02};
+
+    Node opnode{0x0b};
+    opnode.nodes.push_back(input0);
+    opnode.nodes.push_back(input1);
+    opnode.nodes.push_back(input2);
+    opnode.nodes.push_back(input3);
+    opnode.nodes.push_back(input4);
+
+    int count{0};
+    for (auto bedienung : OperationDataMessage{opnode}) {
+        ASSERT_LE(++count, 2);
+        if (count == 1) {
+            EXPECT_EQ(bedienung.get<In::Taster>(), Taster::AFB);
+            EXPECT_EQ(bedienung.get<In::Kommando>(), Kommando::FahrschalterAb_Up);
+            EXPECT_EQ(bedienung.get<In::Aktion>(), Aktion::AufUp);
+            EXPECT_EQ(*bedienung.get<In::Position>(), 0);
+            EXPECT_EQ(*bedienung.get<In::Spezial>(), 0);
+        } else if (count == 2) {
+            EXPECT_EQ(bedienung.get<In::Taster>(), Taster::Hauptschalter);
+            EXPECT_EQ(bedienung.get<In::Kommando>(), Kommando::PfeifeDown);
+            EXPECT_EQ(bedienung.get<In::Aktion>(), Aktion::Down);
+            EXPECT_EQ(*bedienung.get<In::Position>(), 1);
+            EXPECT_EQ(*bedienung.get<In::Spezial>(), 1);
+        }
+    }
+    EXPECT_EQ(count, 2);
 }
 
 }
