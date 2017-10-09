@@ -51,7 +51,7 @@ find_package(GTest REQUIRED)
 
 include_directories(${GTEST_INCLUDE_DIR} "${source_dir}/googlemock/include")
 
-ADD_EXECUTABLE(testzusi3tcp ${SRCS} ../src/Zusi3TCP.cpp)
+ADD_EXECUTABLE(testzusi3tcp ${SRCS} )
 
 TARGET_LINK_LIBRARIES(testzusi3tcp zusi3tcp libgtest libgmock)
 

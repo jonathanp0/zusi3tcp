@@ -22,65 +22,47 @@ SOFTWARE.
 
 #include "Zusi3TCP.h"
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <iostream>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/ioctl.h>
 #include <thread>
 
+#include <boost/array.hpp>
+#include <boost/asio.hpp>
+
+using boost::asio::ip::tcp;
 namespace {
-class PosixSocket : public zusi::Socket {
-  int sock;
-  const char* ip_address;
-  unsigned short port;
+class BoostAsioSyncSocket : public zusi::Socket {
+  boost::asio::io_service io_service;
+  tcp::resolver::query query;
+  tcp::socket socket;
 
  public:
-  PosixSocket(const char* ip_address, unsigned short port)
-      : sock(0), ip_address(ip_address), port(port) {}
-
-  bool connect() {
-    // TODO: IPv6, hostname, ... !?
-    sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock == -1) {
-      return false;
-    }
-
-    struct sockaddr_in address;
-    address.sin_family = AF_INET;
-    address.sin_port = htons(port);
-    inet_aton(ip_address, &address.sin_addr);
-
-    return ::connect(sock, (struct sockaddr*)&address, sizeof(address)) == 0;
+  BoostAsioSyncSocket(std::string&& target, const std::string&& port) : query{target, port}, socket{io_service} {
   }
 
-  // WinsockBlockingSocket(SOCKET socket);
-
-  ~PosixSocket() {
-    if (sock != -1) {
-      close(sock);
-    }
+  bool connect() {
+    boost::system::error_code error;
+    tcp::resolver resolver(io_service);
+    tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
+    boost::asio::connect(socket, endpoint_iterator, error);
+    return !error;
   }
 
   virtual int ReadBytes(void* dest, int bytes) {
-    return recv(sock, static_cast<char*>(dest), bytes, MSG_WAITALL);
+    boost::system::error_code error;
+    int len = 0;
+    do {
+      /* TODO: Handle error */
+      len += socket.read_some(
+          boost::asio::buffer((char*)dest + len, bytes - len), error);
+    } while (bytes > len);
+    return len;
   }
   virtual int WriteBytes(const void* src, int bytes) {
-    return send(sock, static_cast<const char*>(src), bytes, 0);
+      return boost::asio::write(socket, boost::asio::buffer(src, bytes)/*, ignored_error*/);
   }
-  virtual bool DataToRead() {
-    unsigned long bytes_available;
-    if (ioctl(sock, FIONREAD, &bytes_available) != 0) {
-      return false;
-    }
-    return bytes_available > 0;
-  }
+  virtual bool DataToRead() { return socket.available() > 0; }
 };
+
 
 void dumpData(std::unique_ptr<zusi::BaseMessage>&& msg) {
   auto ftdmsg = dynamic_cast<const zusi::FtdDataMessage*>(msg.get());
@@ -111,21 +93,9 @@ void dumpData(std::unique_ptr<zusi::BaseMessage>&& msg) {
     }
 
   } else if (opmsg) {
-    std::cout << "OpMsg, " << opmsg->getNodes().size() << " nodes\n";
-    for (const zusi::Node& input : opmsg->getNodes()) {
-      if (input.getId() == 1) {
-        std::cout << "   Tastur Operation:" << std::endl;
-        for (const zusi::Attribute& att : input.attributes) {
-          if (att.getId() <= 0x3)
-            std::cout << "   Parameter " << att.getId() << " = "
-                      << att.getValue<uint16_t>() << std::endl;
-          else if (att.getId() == 0x4)
-            std::cout << "   Position = " << att.getValue<uint16_t>()
-                      << std::endl;
-        }
-      } else {
-        std::cout << "    Op Input Id: " << input.getId() << "\n";
-      }
+    for (auto op : *opmsg) {
+        std::cout << "Operation:\n";
+		std::cout << "    Kommando " << *op.get<zusi::In::Kommando>() << "\n";
     }
   } else if (progmsg) {
     std::cout << "Progmsg\n";
@@ -133,18 +103,23 @@ void dumpData(std::unique_ptr<zusi::BaseMessage>&& msg) {
 }
 }
 
+
+        template<typename...>
+        class FtdList {};
+
 int main() {
-  using namespace std::chrono_literals;
-  PosixSocket sock{"192.168.2.25", 1436};
+  using namespace std::literals;
+  //PosixSocket sock{"192.168.2.25", 1436};
+  BoostAsioSyncSocket sock{"192.168.2.25"s, "1436"s};
+  std::cout << "Running in endless loop, trying to connect. Use Ctrl-C to terminate.\n";
   do {
     if (sock.connect()) {
       try {
-        std::cout << "Connected!\n";
-
         zusi::ClientConnection con(&sock);
         std::vector<zusi::FuehrerstandData> fd_ids{
             zusi::FS::Geschwindigkeit::id, zusi::FS::Gesamtweg::id,
             zusi::FS::Sifa::id};
+        FtdList<zusi::FS::Geschwindigkeit, zusi::FS::Gesamtweg, zusi::FS::Sifa> ftd;
         std::vector<zusi::ProgData> prog_ids{zusi::ProgData::SimStart};
 
         // Subscribe to receive status updates about the above variables
@@ -160,9 +135,9 @@ int main() {
           dumpData(std::move(msg));
         } while (true);
 
-      } catch (std::domain_error err) {
+      } catch (std::domain_error& err) {
         std::cerr << "Domain Exception: " << err.what() << std::endl;
-      } catch (std::runtime_error err) {
+      } catch (std::runtime_error& err) {
         std::cerr << "Runtime Exception: " << err.what() << std::endl;
       }
     }
