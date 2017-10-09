@@ -454,6 +454,110 @@ TEST(ClientConnection, connect) {
     EXPECT_TRUE(conn.getZusiVersion() == "3.0.1.0");
 }
 
+// This is almost the same as above, but uses type-based registration and reorderd Ftd-List
+TEST(ClientConnection, connectTyped) {
+    // Example data from manual
+    static const char requestdata[] =
+            // Welcome message
+            "\x00\x00\x00\x00" // root node
+            "\x01\x00" // connection request
+            "\x00\x00\x00\x00" // child node
+            "\x01\x00"  // 1 -> Hello
+
+            "\x04\x00\x00\x00" // Attribute 4 byte long
+            "\x01\x00" // Protocol version
+            "\x02\x00" // Version 2
+
+            "\x04\x00\x00\x00" // Attribute 4 byte long
+            "\x02\x00" // Client type
+            "\x02\x00" // Controller
+
+            "\x0c\x00\x00\x00" // Attribute 12 bytes
+            "\x03\x00" // name
+            "testclient" // literal name
+
+            "\x05\x00\x00\x00" // Attribute 5 byte long
+            "\x04\x00" // version
+            "2.0" // literal name
+
+            "\xff\xff\xff\xff" // end of child node
+            "\xff\xff\xff\xff" // end of root node
+
+            "\x00\x00\x00\x00" // root node
+            "\x02\x00"
+            "\x00\x00\x00\x00" // child node
+            "\x03\x00"
+
+            "\x00\x00\x00\x00" // child node
+            "\x0A\x00"
+
+            "\x04\x00\x00\x00" // Attribute length 4
+            "\x01\x00" // type=FT ID
+            "\x01\x00" // Speed
+            "\x04\x00\x00\x00" // Attribute length 4
+            "\x01\x00" // type=FT ID
+            "\x1B\x00" // Schleudern
+
+            "\xff\xff\xff\xff" // end of child node
+
+            "\xff\xff\xff\xff" // end of child node
+            "\xff\xff\xff\xff" // end of root node
+            ;
+
+    static const char serverdata[] =
+            // ACK Hello
+            "\x00\x00\x00\x00" // header
+            "\x01\x00" // connect
+
+            "\x00\x00\x00\x00" // child node
+            "\x02\x00" // ACK HELLO
+
+            "\x09\x00\x00\x00" // Attribute 9 bytes
+            "\x01\x00" // Version
+            "3.0.1.0"    // literal
+
+            "\x03\x00\x00\x00" // Attribute 3 bytes long
+            "\x02\x00" // connection info
+            "0" // literal
+
+            "\x03\x00\x00\x00" // Attribute 3 bytes long
+            "\x03\x00" // Result
+            "\x00" // OK
+
+            "\xff\xff\xff\xff" // end of child node
+            "\xff\xff\xff\xff" // end of root node
+
+
+            // Request data
+            "\x00\x00\x00\x00" // root node
+            "\x02\x00" // fahrpulte
+
+            "\x00\x00\x00\x00" // child node
+            "\x04\x00" // ACK_NEEDED_DATA
+
+            "\x03\x00\x00\x00" // Attribute 3 byte long
+            "\x01\x00" // result
+            "\x00"  // result, 0 -> ok
+
+            "\xff\xff\xff\xff" // end of child node
+            "\xff\xff\xff\xff" // end of root node
+            ;
+
+    FakeSocket sock{serverdata, sizeof(serverdata)-1};
+    ClientConnection conn{&sock};
+
+    conn.connect<std::tuple<FS::LMSchleudern, FS::Geschwindigkeit>, std::tuple<>>("testclient", false);
+
+    auto written = sock.GetWrittenData();
+    std::string writtens{reinterpret_cast<const char*>(written.data()), written.size()};
+    std::string expected{requestdata, sizeof(requestdata)-1};
+
+    EXPECT_TRUE(writtens == expected);
+
+    //EXPECT_STREQ(conn.getZusiVersion(), "3.0.1.0");
+    EXPECT_TRUE(conn.getZusiVersion() == "3.0.1.0");
+}
+
 TEST(ClientConnection, sendInput) {
     const char expected[] =
             "\x00\x00\x00\x00"
