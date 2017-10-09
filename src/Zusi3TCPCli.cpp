@@ -25,6 +25,7 @@ SOFTWARE.
 #include <iostream>
 #include <thread>
 
+#define BOOST_ERROR_CODE_HEADER_ONLY 1
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
 
@@ -116,15 +117,9 @@ int main() {
     if (sock.connect()) {
       try {
         zusi::ClientConnection con(&sock);
-        std::vector<zusi::FuehrerstandData> fd_ids{
-            zusi::FS::Geschwindigkeit::id, zusi::FS::Gesamtweg::id,
-            zusi::FS::Sifa::id};
-        FtdList<zusi::FS::Geschwindigkeit, zusi::FS::Gesamtweg, zusi::FS::Sifa> ftd;
-        std::vector<zusi::ProgData> prog_ids{zusi::ProgData::SimStart};
-
-        // Subscribe to receive status updates about the above variables
-        // Not subscribing to input events
-        con.connect("Zusi3TCPCli", fd_ids, prog_ids, true);
+        con.connect<std::tuple<zusi::FS::Geschwindigkeit, zusi::FS::Gesamtweg,
+                               zusi::FS::Sifa>,
+                    std::tuple<zusi::ProgData::SimStart> >("Zusi3TCPCli", true);
 
         std::cout << "Zusi Version:" << con.getZusiVersion() << std::endl;
         std::cout << "Connection Info: " << con.getConnectionnfo() << std::endl;

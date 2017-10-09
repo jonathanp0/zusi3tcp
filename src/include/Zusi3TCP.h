@@ -106,8 +106,6 @@ Fs_Gesamtweg = 25,
 };
 */
 
-//! Program status Data variable ID's
-enum class ProgData { Zugdatei = 1, Zugnummer, SimStart, BuchfahrplanDatei };
 
 //! Abstract interface for a socket
 class Socket {
@@ -213,7 +211,8 @@ template <uint16_t id_, typename NetworkType, typename CPPType = NetworkType>
 struct AttribTag {
   using networktype = NetworkType;
   using type = CPPType;
-  constexpr static auto id = id_;
+    enum key {id = id_};
+  //constexpr static auto id = id_;
 
   constexpr AttribTag() {}
 
@@ -331,7 +330,8 @@ class Node {
 template <uint16_t id_, typename... Atts>
 class ComplexNode {
  public:
-  constexpr static auto id = id_;
+  //constexpr static auto id = id_;
+    enum vals { id = id_ };
 
  private:
   using AttTupleT = std::tuple<Atts...>;
@@ -440,6 +440,13 @@ using Sifa =
     ComplexNode<100, zusi::Sifa::Bauart, zusi::Sifa::Leuchtmelder,
                 zusi::Sifa::Hupe, zusi::Sifa::Hauptschalter,
                 zusi::Sifa::Stoerschalter, zusi::Sifa::Luftabsperrhahn>;
+}
+
+namespace ProgData {
+using Zugdatei = AttribTag<1, std::string>;
+using Zugnummer = AttribTag<2, std::string>;
+using SimStart = AttribTag<3, float>;
+using BuchfahrplanDatei = AttribTag<4, std::string>;
 }
 
 namespace In {
@@ -670,6 +677,23 @@ class Connection {
   Socket* m_socket;
 };
 
+namespace {
+template<typename Ts, int i>
+typename std::enable_if<(i == 0)>::type appendIdToVec(std::vector<uint16_t>&) {
+}
+
+template<typename Ts, int i>
+typename std::enable_if<(i>0)>::type appendIdToVec(std::vector<uint16_t>& vec) {
+    vec.push_back(std::tuple_element<i-1, Ts>::type::id);
+    /* TODO C++17 use constexpr if and remove above function and enable_if
+    if constexpr (i > 0) {
+        appendIdToVec<Ts, i-1>(vec);
+    }
+    */
+    appendIdToVec<Ts, i-1>(vec);
+}
+}
+
 //! Manages connection to a Zusi server
 class ClientConnection : public Connection {
  public:
@@ -691,7 +715,17 @@ class ClientConnection : public Connection {
   */
   bool connect(const std::string& client_id,
                const std::vector<FuehrerstandData>& fs_data,
-               const std::vector<ProgData>& prog_data, bool bedienung);
+               const std::vector<uint16_t>& prog_data, bool bedienung);
+
+  template<typename FtdT, typename ProgDataT>
+  bool connect(const std::string& client_id, bool bedienung) {
+      std::vector<uint16_t> ftds, progdata;
+
+      appendIdToVec<FtdT, std::tuple_size<FtdT>::value>(ftds);
+      appendIdToVec<ProgDataT, std::tuple_size<ProgDataT>::value>(progdata);
+
+      return connect(client_id, ftds, progdata, bedienung);
+  }
 
   /**
   * @brief Send an INPUT command

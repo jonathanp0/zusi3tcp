@@ -126,7 +126,7 @@ bool Connection::sendMessage(const Node &src) { return writeNode(src); }
 
 bool ClientConnection::connect(const std::string &client_id,
                                const std::vector<FuehrerstandData> &fs_data,
-                               const std::vector<ProgData> &prog_data,
+                               const std::vector<uint16_t> &prog_data,
                                bool bedienung) {
   // Send hello
   Node hello_message(1);
@@ -182,7 +182,7 @@ bool ClientConnection::connect(const std::string &client_id,
 
   if (!prog_data.empty()) {
     Node needed_prog{0xC};
-    for (ProgData prog_id : prog_data) {
+    for (uint16_t prog_id : prog_data) {
       needed_prog.attributes.emplace_back(
           Attribute{1, uint16_t{static_cast<uint16_t>(prog_id)}});
     }
