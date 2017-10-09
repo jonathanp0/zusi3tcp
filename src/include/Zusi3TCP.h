@@ -146,17 +146,17 @@ namespace {
 class Attribute {
  public:
   //! Construct an empty attribute
-  Attribute() : data_bytes(0), data{0}, m_id(0) {}
+  Attribute() : data{}, m_id(0) {}
 
   /** @brief Constructs an attribute
   * @param id Attribute ID
   */
-  explicit constexpr Attribute(uint16_t id)
-      : data_bytes(0), data{0}, m_id(id) {}
+  explicit Attribute(uint16_t id)
+      : data{}, m_id(id) {}
 
   template <typename T>
   Attribute(uint16_t id, T value)
-      : data_bytes(0), data{0}, m_id(id) {
+      : data{}, m_id(id) {
     setValue<T>(value);
   }
 
@@ -165,58 +165,45 @@ class Attribute {
   Attribute& operator=(const Attribute& o) = default;
 
   //! Get Attribute ID
-  constexpr uint16_t getId() const { return m_id; }
+  uint16_t getId() const { return m_id; }
 
   //! Utility function to set the value
   template <typename T>
   void setValue(T value) {
-    static_assert(sizeof(T) <= sizeof(data),
-                  "Trying to write too big data into attribute");
-    *reinterpret_cast<T*>(data) = value;
-    data_bytes = sizeof(T);
+    data.assign(reinterpret_cast<uint8_t*>(&value), sizeof(T));
   }
 
   void setValueRaw(const uint8_t* data, size_t length) {
     if (length > sizeof(this->data)) {
       throw std::runtime_error("Trying to write too much data");
     }
-    data_bytes = length;
-    memcpy(this->data, data, length);
+    this->data.assign(data, length);
   }
 
-  bool hasValue() const { return data_bytes != 0; }
+  bool hasValue() const { return data.length() != 0; }
 
   template <typename T>
   bool hasValueType() const {
-    return sizeof(T) == data_bytes;
+    return sizeof(T) == data.length();
   }
 
-  size_t getValueLen() const { return data_bytes; }
+  size_t getValueLen() const { return data.length(); }
 
   template <typename T>
   T getValue() const {
-    static_assert(sizeof(T) <= sizeof(data),
-                  "Trying to read too big data into attribute");
-    return *reinterpret_cast<const T*>(data);
+    return *reinterpret_cast<const T*>(data.c_str());
   }
 
   const uint8_t* getValueRaw(size_t* len = nullptr) const {
     if (len) {
-      *len = data_bytes;
+      *len = data.length();
     }
-    return data;
+    return data.c_str();
   }
 
  private:
-  //! Number of bytes in #data
-  uint32_t data_bytes;
-
   //! Attribute data
-  uint8_t data[255];  // more or less random length, this won't be enough for
-                      // the timetable XML, but most likely this client
-  // won't read such large messages correctly either due to ignoring
-  // read()/recv()'s return value and
-  // network fragmentation
+  std::basic_string<uint8_t> data;
 
   uint16_t m_id;
 };
@@ -328,9 +315,6 @@ class Node {
 
  private:
   uint16_t m_id;
-
-  static const uint32_t NODE_START = 0;
-  static const uint32_t NODE_END = 0xFFFFFFFF;
 
   template <typename T, typename L>
   optional<T> getImpl(const L& list) const noexcept {
