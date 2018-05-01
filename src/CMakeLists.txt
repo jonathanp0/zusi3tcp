@@ -1,13 +1,14 @@
 project(zusi3tcplib VERSION 0.1 LANGUAGES C CXX)
 
 if (WIN32)
-    set ( SOURCES Zusi3TCP.cpp WinsockBlockingSocket.cpp )
-    set ( HEADERS include/Zusi3TCP.h include/WinsockBlockingSocket.h )
+    #set ( SOURCES Zusi3TCP.cpp WinsockBlockingSocket.cpp )
+    #set ( HEADERS include/Zusi3TCP.h include/WinsockBlockingSocket.h )
     set( WINDOWS_LIB ws2_32 ) # might only be needed with mingw
-else()
+endif()
+#else()
     set ( SOURCES Zusi3TCP.cpp )
     set ( HEADERS include/Zusi3TCP.h )
-endif()
+#endif()
 
 
 set ( CLI_SOURCES Zusi3TCPCli.cpp )

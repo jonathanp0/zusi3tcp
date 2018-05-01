@@ -221,7 +221,9 @@ public:
     FakeSocket() : readdata(""), len(0), readpos(const_cast<char*>(readdata)) {}
     FakeSocket(const char *data, size_t len) : readdata(data), len(len), readpos(const_cast<char*>(data)) {}
 
-    int ReadBytes(void *dest, int bytes) {
+    bool connect() override { return true; }
+
+    int ReadBytes(void *dest, int bytes) override {
 #ifdef DUMP_FAKE_STREAM_READS
         std::cout << "At " << readpos-readdata << " reading " << bytes << " of " << len << " remaining, starting at " << &readpos << std::endl;
 #endif
@@ -232,11 +234,11 @@ public:
         return bytes;
     }
 
-    bool DataToRead() {
+    bool DataToRead() override {
         return len != 0;
     }
 
-    int WriteBytes(const void* src, int len) {
+    int WriteBytes(const void* src, int len) override {
         const uint8_t *data{reinterpret_cast<const uint8_t*>(src)};
         std::copy(data, data+len, std::back_inserter(writedata));
         return len;

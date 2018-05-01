@@ -47,8 +47,6 @@ SOFTWARE.
 #error "Missing __has_include"
 #endif
 
-#include <string.h>  // For memcpy
-
 //! Zusi Namespace
 namespace zusi {
 
@@ -112,6 +110,8 @@ class Socket {
  public:
   virtual ~Socket() {}
 
+    virtual bool connect() = 0;
+
   /** @brief Try to read bytes into dest from socket.
   *
   * Method should block until all requested bytes are read, or the stream ends
@@ -136,7 +136,6 @@ class Socket {
   virtual bool DataToRead() = 0;
 };
 
-namespace {
 /**
 * @brief Generic Zusi message attribute.
 * Data is owned by the class
@@ -172,9 +171,6 @@ class Attribute {
   }
 
   void setValueRaw(const uint8_t* data, size_t length) {
-    if (length > sizeof(this->data)) {
-      throw std::runtime_error("Trying to write too much data");
-    }
     this->data.assign(data, length);
   }
 
@@ -205,7 +201,7 @@ class Attribute {
 
   uint16_t m_id;
 };
-}
+
 
 template <uint16_t id_, typename NetworkType, typename CPPType = NetworkType>
 struct AttribTag {
@@ -419,6 +415,7 @@ using DruckHauptlufleitung = AttribTag<2, float>;
 using DruckBremszylinder = AttribTag<3, float>;
 using DruckHauptluftbehaelter = AttribTag<4, float>;
 using LuftpresserLaeuft = AttribTag<5, float, bool>;
+using ZugkraftGesamt = AttribTag<9, float>;
 using Oberstrom = AttribTag<13, float>;
 using Fahrleitungsspannung = AttribTag<14, float>;
 using Motordrehzahl = AttribTag<15, float>;
@@ -604,6 +601,7 @@ class OperationDataMessage : public BaseMessage {
       }
       iterator operator++() {
           ++inner;
+          // TODO - We filter out "Kombischalter", maybe till we have std::variant?
           inner = std::find_if_not(inner, end, [](auto it) { return it.getId() == 2; });
           return iterator{inner, end};
       }
@@ -618,14 +616,14 @@ class OperationDataMessage : public BaseMessage {
   OperationDataMessage(const OperationDataMessage&) = default;
   OperationDataMessage(OperationDataMessage&&) = default;
 
-  iterator begin() const {
+  iterator begin() const noexcept {
       return iterator{std::find_if_not(root.nodes.begin(), root.nodes.end(), [](auto it) { return it.getId() == 2; }), root.nodes.end()};
   }
-  iterator end() const {
+  iterator end() const noexcept {
       return iterator{root.nodes.end(), root.nodes.end()};
   }
 
-  decltype(root.nodes.size()) size() {
+  decltype(root.nodes.size()) size() const noexcept {
       return root.nodes.size();
   }
 };
@@ -638,7 +636,10 @@ class ProgDataMessage : public BaseMessage {
   ProgDataMessage(const ProgDataMessage&) = default;
   ProgDataMessage(ProgDataMessage&&) = default;
 
-  const std::vector<Node>& getNodes() const noexcept { return root.nodes; }
+  template <typename T>
+  optional<T> get() const noexcept {
+    return root.get<T>();
+  }
 };
 
 //! Parent class for a connection

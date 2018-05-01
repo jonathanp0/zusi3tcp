@@ -40,7 +40,7 @@ class BoostAsioSyncSocket : public zusi::Socket {
   BoostAsioSyncSocket(std::string&& target, const std::string&& port) : query{target, port}, socket{io_service} {
   }
 
-  bool connect() {
+  bool connect() override {
     boost::system::error_code error;
     tcp::resolver resolver(io_service);
     tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
@@ -48,7 +48,7 @@ class BoostAsioSyncSocket : public zusi::Socket {
     return !error;
   }
 
-  virtual int ReadBytes(void* dest, int bytes) {
+  virtual int ReadBytes(void* dest, int bytes) override {
     boost::system::error_code error;
     int len = 0;
     do {
@@ -58,10 +58,10 @@ class BoostAsioSyncSocket : public zusi::Socket {
     } while (bytes > len);
     return len;
   }
-  virtual int WriteBytes(const void* src, int bytes) {
+  virtual int WriteBytes(const void* src, int bytes) override {
       return boost::asio::write(socket, boost::asio::buffer(src, bytes)/*, ignored_error*/);
   }
-  virtual bool DataToRead() { return socket.available() > 0; }
+  virtual bool DataToRead() override { return socket.available() > 0; }
 };
 
 
@@ -100,26 +100,33 @@ void dumpData(std::unique_ptr<zusi::BaseMessage>&& msg) {
     }
   } else if (progmsg) {
     std::cout << "Progmsg\n";
+    auto zugnummer = progmsg->get<zusi::ProgData::Zugnummer>();
+    if (zugnummer) {
+        std::cout << "Zugnummer: " << **zugnummer << '\n';
+    }
+    auto zugdatei = progmsg->get<zusi::ProgData::BuchfahrplanDatei>();
+    if (zugdatei) {
+    std::cout << "Zugdatei: " << **zugdatei << '\n';
+    }
+
   }
 }
 }
 
 
-        template<typename...>
-        class FtdList {};
-
 int main() {
   using namespace std::literals;
-  //PosixSocket sock{"192.168.2.25", 1436};
-  BoostAsioSyncSocket sock{"192.168.2.25"s, "1436"s};
+  //PosixSocket sock{"192.168.2.22", 1436};
+  BoostAsioSyncSocket sock{"192.168.2.22"s, "1436"s};
   std::cout << "Running in endless loop, trying to connect. Use Ctrl-C to terminate.\n";
   do {
+    std::cout << "Trying ... \n";
     if (sock.connect()) {
       try {
         zusi::ClientConnection con(&sock);
         con.connect<std::tuple<zusi::FS::Geschwindigkeit, zusi::FS::Gesamtweg,
                                zusi::FS::Sifa>,
-                    std::tuple<zusi::ProgData::SimStart> >("Zusi3TCPCli", true);
+                    std::tuple<zusi::ProgData::SimStart, zusi::ProgData::Zugnummer, zusi::ProgData::BuchfahrplanDatei> >("Zusi3TCPCli", true);
 
         std::cout << "Zusi Version:" << con.getZusiVersion() << std::endl;
         std::cout << "Connection Info: " << con.getConnectionnfo() << std::endl;
@@ -134,6 +141,9 @@ int main() {
         std::cerr << "Domain Exception: " << err.what() << std::endl;
       } catch (std::runtime_error& err) {
         std::cerr << "Runtime Exception: " << err.what() << std::endl;
+      } catch (...) {
+        std::cerr << "An unexpected exception type, will terminate." << std::endl;
+        throw;
       }
     }
     std::this_thread::sleep_for(10s);
