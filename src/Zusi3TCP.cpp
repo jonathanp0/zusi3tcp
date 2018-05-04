@@ -121,8 +121,6 @@ void Connection::writeAttribute(const Attribute &att) const {
   m_socket->WriteBytes(att.getValueRaw(), att.getValueLen());
 }
 
-bool Connection::sendMessage(const Node &src) { return writeNode(src); }
-
 bool Connection::connect(const std::string &client_id,
                          const std::vector<FuehrerstandData> &fs_data,
                          const std::vector<uint16_t> &prog_data,
@@ -222,6 +220,6 @@ bool Connection::sendInput(const In::Taster &taster,
   input.nodes.push_back(action);
   input_message.nodes.push_back(input);
 
-  return sendMessage(input_message);
+  return writeNode(input_message);
 }
 }  // namespace zusi

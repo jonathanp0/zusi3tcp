@@ -692,9 +692,6 @@ class Connection {
   //! Receive a message
   std::unique_ptr<zusi::BaseMessage> receiveMessage() const;
 
-  //! Send a message
-  bool sendMessage(const Node& src);
-
   //! Check if there is data read
   bool dataAvailable() { return m_socket->DataToRead(); }
 
@@ -716,10 +713,8 @@ class Connection {
  private:
   Node readNode() const;
   Attribute readAttribute(uint32_t length) const;
-  void writeAttribute(const Attribute& att) const;
-
-  // TODO: ClientConnecton's calls to this via sendMessage()?
   bool writeNode(const Node& node) const;
+  void writeAttribute(const Attribute& att) const;
 
   Socket* m_socket;
   std::string m_zusiVersion;
