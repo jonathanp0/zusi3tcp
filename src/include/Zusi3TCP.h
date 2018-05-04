@@ -693,7 +693,7 @@ class Connection {
   std::unique_ptr<zusi::BaseMessage> receiveMessage() const;
 
   //! Check if there is data read
-  bool dataAvailable() { return m_socket->DataToRead(); }
+  bool dataAvailable() const { return m_socket->DataToRead(); }
 
   Node readNodeWithHeader() const;
 
@@ -705,10 +705,10 @@ class Connection {
                  const In::Aktion& aktion, uint16_t position);
 
   //! Get the version string supplied by the server
-  std::string getZusiVersion() { return m_zusiVersion; }
+  const std::string& getZusiVersion() const { return m_zusiVersion; }
 
   //! Get the connection info string supplied by the server
-  std::string getConnectionnfo() { return m_connectionInfo; }
+  const std::string& getConnectionnfo() const { return m_connectionInfo; }
 
  private:
   Node readNode() const;
