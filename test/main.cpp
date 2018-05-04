@@ -185,36 +185,37 @@ TEST(ComplexNode, missingAttribute) {
   EXPECT_ANY_THROW({ ComplexTestNode{node}; });
 }
 
-/*
- Using Mock stuff would be nice, but I am too stupid to return by pointer
-class MockSocket : public Socket {
-public:
-    MOCK_METHOD2(ReadBytes, int(void*, int));
-    MOCK_METHOD2(WriteBytes, int(const void*, int));
-    MOCK_METHOD0(DataToRead, bool());
-};
+  /*
+   Using Mock stuff would be nice, but I am too stupid to return by pointer
+  class MockSocket : public Socket {
+  public:
+      MOCK_METHOD2(ReadBytes, int(void*, int));
+      MOCK_METHOD2(WriteBytes, int(const void*, int));
+      MOCK_METHOD0(DataToRead, bool());
+  };
 
-TEST(Connection, readXXXXXXXXXXXXX) {
-    using ::testing::_;
-    using ::testing::Return;
-    using ::testing::SetArgPointee;
-    using ::testing::DoAll;
+  TEST(Connection, readXXXXXXXXXXXXX) {
+      using ::testing::_;
+      using ::testing::Return;
+      using ::testing::SetArgPointee;
+      using ::testing::DoAll;
 
-    MockSocket sock{};
-    Connection conn{&sock};
+      MockSocket sock{};
+      Connection conn{&sock};
 
-    uint8_t header{0};
-    EXPECT_CALL(sock, ReadBytes(_, _)).
-            WillOnce(
-                //DoAll(
-                    //SetArgPointee<0>((void*)&header),
-                    Return(sizeof(uint8_t))
-                //)
-            );
-    conn.receiveMessage();
-}
-*/
+      uint8_t header{0};
+      EXPECT_CALL(sock, ReadBytes(_, _)).
+              WillOnce(
+                  //DoAll(
+                      //SetArgPointee<0>((void*)&header),
+                      Return(sizeof(uint8_t))
+                  //)
+              );
+      conn.receiveMessage();
+  }
+  */
 
+#ifdef FAKE_SOCKET
 class FakeSocket : public Socket {
   const char *readdata;
   size_t len;
@@ -603,6 +604,8 @@ TEST(ClientConnection, sendInput) {
   // EXPECT_STREQ(writtens, expecteds);
   EXPECT_TRUE(writtens == expecteds);
 }
+
+#endif
 
 TEST(OperationDataMessage, iteratorEmpty) {
   Node opnode{0x0b};

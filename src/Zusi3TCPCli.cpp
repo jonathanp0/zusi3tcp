@@ -29,104 +29,78 @@ SOFTWARE.
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
 
+using namespace std::literals;
 using boost::asio::ip::tcp;
+using namespace zusi;
+
 namespace {
-class BoostAsioSyncSocket : public zusi::Socket {
-  boost::asio::io_service io_service;
-  tcp::resolver::query query;
-  tcp::socket socket;
-
- public:
-  BoostAsioSyncSocket(std::string&& target, const std::string&& port) : query{target, port}, socket{io_service} {
-  }
-
-  bool connect() override {
-    boost::system::error_code error;
-    tcp::resolver resolver(io_service);
-    tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
-    boost::asio::connect(socket, endpoint_iterator, error);
-    return !error;
-  }
-
-  virtual int ReadBytes(void* dest, int bytes) override {
-    boost::system::error_code error;
-    int len = 0;
-    do {
-      /* TODO: Handle error */
-      len += socket.read_some(
-          boost::asio::buffer((char*)dest + len, bytes - len), error);
-    } while (bytes > len);
-    return len;
-  }
-  virtual int WriteBytes(const void* src, int bytes) override {
-      return boost::asio::write(socket, boost::asio::buffer(src, bytes)/*, ignored_error*/);
-  }
-  virtual bool DataToRead() override { return socket.available() > 0; }
-};
-
-
-void dumpData(std::unique_ptr<zusi::BaseMessage>&& msg) {
-  auto ftdmsg = dynamic_cast<const zusi::FtdDataMessage*>(msg.get());
-  auto opmsg = dynamic_cast<const zusi::OperationDataMessage*>(msg.get());
-  auto progmsg = dynamic_cast<const zusi::ProgDataMessage*>(msg.get());
+void dumpData(std::unique_ptr<BaseMessage>&& msg) {
+  auto ftdmsg = dynamic_cast<const FtdDataMessage*>(msg.get());
+  auto opmsg = dynamic_cast<const OperationDataMessage*>(msg.get());
+  auto progmsg = dynamic_cast<const ProgDataMessage*>(msg.get());
 
   if (ftdmsg) {
     std::cout << "FTD message\n";
-    auto speed = ftdmsg->get<zusi::FS::Geschwindigkeit>();
+    auto speed = ftdmsg->get<FS::Geschwindigkeit>();
     if (speed) {
       std::cout << "   " << *speed * 3.6f << "km/h\n";
     }
 
-    auto gesamtweg = ftdmsg->get<zusi::FS::Gesamtweg>();
+    auto gesamtweg = ftdmsg->get<FS::Gesamtweg>();
     if (gesamtweg) {
       std::cout << "   Gesamtweg: " << *gesamtweg << std::endl;
     }
 
-    auto sifa = ftdmsg->get<zusi::FS::Sifa>();
+    auto sifa = ftdmsg->get<FS::Sifa>();
     if (sifa) {
-      std::cout << "   Sifa Bauart: " << *sifa->get<zusi::Sifa::Bauart>()
-                << "\n"
+      std::cout << "   Sifa Bauart: " << *sifa->get<Sifa::Bauart>() << "\n"
                 << "   Sifa Leuchtmelder: "
-                << (*sifa->get<zusi::Sifa::Leuchtmelder>() ? "AN" : "aus")
-                << "\n"
-                << "   Sifa Hupe: "
-                << (*sifa->get<zusi::Sifa::Hupe>() ? "AN" : "aus") << "\n";
+                << (*sifa->get<Sifa::Leuchtmelder>() ? "AN" : "aus") << "\n"
+                << "   Sifa Hupe: " << (*sifa->get<Sifa::Hupe>() ? "AN" : "aus")
+                << "\n";
     }
 
   } else if (opmsg) {
     for (auto op : *opmsg) {
-        std::cout << "Operation:\n";
-		std::cout << "    Kommando " << *op.get<zusi::In::Kommando>() << "\n";
+      std::cout << "Operation:\n";
+      std::cout << "    Kommando " << *op.get<In::Kommando>() << "\n";
     }
   } else if (progmsg) {
     std::cout << "Progmsg\n";
-    auto zugnummer = progmsg->get<zusi::ProgData::Zugnummer>();
+    auto zugnummer = progmsg->get<ProgData::Zugnummer>();
     if (zugnummer) {
-        std::cout << "Zugnummer: " << **zugnummer << '\n';
+      std::cout << "Zugnummer: " << **zugnummer << '\n';
     }
-    auto zugdatei = progmsg->get<zusi::ProgData::BuchfahrplanDatei>();
+    auto zugdatei = progmsg->get<ProgData::BuchfahrplanDatei>();
     if (zugdatei) {
-    std::cout << "Zugdatei: " << **zugdatei << '\n';
+      std::cout << "Zugdatei: " << **zugdatei << '\n';
     }
-
   }
 }
-}
-
+}  // namespace
 
 int main() {
-  using namespace std::literals;
-  //PosixSocket sock{"192.168.2.22", 1436};
-  BoostAsioSyncSocket sock{"192.168.2.22"s, "1436"s};
-  std::cout << "Running in endless loop, trying to connect. Use Ctrl-C to terminate.\n";
+  boost::asio::io_service io_service;
+  tcp::socket socket{io_service};
+
+  std::cout << "Running in endless loop, trying to connect. Use Ctrl-C to "
+               "terminate.\n";
   do {
     std::cout << "Trying ... \n";
-    if (sock.connect()) {
+
+    boost::system::error_code error;
+    tcp::resolver resolver(io_service);
+    tcp::resolver::query query{"192.168.2.22"s, "1436"s};
+    tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
+    boost::asio::connect(socket, endpoint_iterator, error);
+
+    if (!error) {
       try {
-        zusi::ClientConnection con(&sock);
-        con.connect<std::tuple<zusi::FS::Geschwindigkeit, zusi::FS::Gesamtweg,
-                               zusi::FS::Sifa>,
-                    std::tuple<zusi::ProgData::SimStart, zusi::ProgData::Zugnummer, zusi::ProgData::BuchfahrplanDatei> >("Zusi3TCPCli", true);
+        Connection con(socket);
+        con.connect<std::tuple<FS::Geschwindigkeit, FS::Gesamtweg, FS::Sifa>,
+                    std::tuple<ProgData::SimStart, ProgData::Zugnummer,
+                               ProgData::BuchfahrplanDatei> >("Zusi3TCPCli",
+                                                              true);
 
         std::cout << "Zusi Version:" << con.getZusiVersion() << std::endl;
         std::cout << "Connection Info: " << con.getConnectionnfo() << std::endl;
@@ -142,7 +116,8 @@ int main() {
       } catch (std::runtime_error& err) {
         std::cerr << "Runtime Exception: " << err.what() << std::endl;
       } catch (...) {
-        std::cerr << "An unexpected exception type, will terminate." << std::endl;
+        std::cerr << "An unexpected exception type, will terminate."
+                  << std::endl;
         throw;
       }
     }

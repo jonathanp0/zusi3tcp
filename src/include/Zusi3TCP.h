@@ -35,6 +35,9 @@ SOFTWARE.
 #include <type_traits>
 #include <vector>
 
+#include <boost/array.hpp>
+#include <boost/asio.hpp>
+
 #ifdef __has_include
 #if __has_include(<experimental/optional>)
 #include <experimental/optional>
@@ -104,37 +107,6 @@ Fs_Gesamtweg = 25,
 };
 */
 
-//! Abstract interface for a socket
-class Socket {
- public:
-  virtual ~Socket() {}
-
-  virtual bool connect() = 0;
-
-  /** @brief Try to read bytes into dest from socket.
-   *
-   * Method should block until all requested bytes are read, or the stream ends
-   * @param dest Data buffer to write to
-   * @param bytes Number of bytes to read
-   * @return Number of bytes read
-   */
-  virtual int ReadBytes(void* dest, int bytes) = 0;
-
-  /**
-   * @brief Try to write bytes from src to socket.
-   * @param src Data buffer to read from
-   * @param bytes Number of bytes to read
-   * @return Number of bytes successfully written
-   */
-  virtual int WriteBytes(const void* src, int bytes) = 0;
-
-  /**
-   * @brief Check if there is incoming data waiting to be read
-   * @return True if data available, otherwise false
-   */
-  virtual bool DataToRead() = 0;
-};
-
 /**
  * @brief Generic Zusi message attribute.
  * Data is owned by the class
@@ -193,9 +165,7 @@ class Attribute {
   }
 
  private:
-  //! Attribute data
   std::basic_string<uint8_t> data;
-
   uint16_t m_id;
 };
 
@@ -330,14 +300,14 @@ class ComplexNode {
   AttTupleT atts;
 
   template <int N>
-  void matchAttribute(const Node& node, std::false_type) {}
+  void matchAttribute(const Node& /*node*/, std::false_type) {}
 
   template <int N>
   void matchAttribute(const Node& node, std::true_type) {
     constexpr int id = std::tuple_element<N - 1, AttTupleT>::type::id;
     auto att = std::find_if(
         node.attributes.cbegin(), node.attributes.cend(),
-        [id](const Attribute& att) -> bool { return att.getId() == id; });
+        [](const Attribute& att) -> bool { return att.getId() == id; });
     if (att != node.attributes.cend()) {
       std::get<N - 1>(atts) = *att;
     } else {
@@ -661,7 +631,7 @@ typename std::enable_if<(i > 0)>::type appendIdToVec(
 //! Manages connection to a Zusi server
 class Connection {
  public:
-  Connection(Socket* socket) : m_socket(socket) {}
+  Connection(boost::asio::ip::tcp::tcp::socket& socket) : m_socket(socket) {}
 
   /**
    * @brief Set up connection to server
@@ -693,7 +663,7 @@ class Connection {
   std::unique_ptr<zusi::BaseMessage> receiveMessage() const;
 
   //! Check if there is data read
-  bool dataAvailable() const { return m_socket->DataToRead(); }
+  bool dataAvailable() const { return m_socket.available() > 0; }
 
   Node readNodeWithHeader() const;
 
@@ -716,7 +686,7 @@ class Connection {
   bool writeNode(const Node& node) const;
   void writeAttribute(const Attribute& att) const;
 
-  Socket* m_socket;
+  boost::asio::ip::tcp::tcp::socket& m_socket;
   std::string m_zusiVersion;
   std::string m_connectionInfo;
 };

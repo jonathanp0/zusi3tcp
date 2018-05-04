@@ -20,6 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+#define BOOST_ERROR_CODE_HEADER_ONLY 1
 #include "Zusi3TCP.h"
 
 #include <cstdint>
@@ -31,15 +32,35 @@ static const uint32_t NODE_START = 0;
 static const uint32_t NODE_END = 0xFFFFFFFF;
 
 namespace zusi {
+namespace {
+using socket = boost::asio::ip::tcp::tcp::socket;
+static std::size_t readBytes(socket &sock, void *dest, std::size_t bytes) {
+  boost::system::error_code error;
+  std::size_t len = 0;
+  do {
+    /* TODO: Handle error */
+    len += sock.read_some(
+        boost::asio::buffer(reinterpret_cast<char *>(dest) + len, bytes - len),
+        error);
+  } while (bytes > len);
+  return len;
+}
+static std::size_t writeBytes(socket &sock, const void *src,
+                              std::size_t bytes) {
+  return boost::asio::write(
+      sock, boost::asio::buffer(src, bytes) /*, ignored_error*/);
+}
+}  // namespace
+
 Node Connection::readNode() const {
   uint16_t id;
-  m_socket->ReadBytes(&id, sizeof(id));
+  readBytes(m_socket, &id, sizeof(id));
 
   Node result{id};
 
   uint32_t next_length;
   while (true) {
-    m_socket->ReadBytes(&next_length, sizeof(next_length));
+    readBytes(m_socket, &next_length, sizeof(next_length));
 
     if (next_length == NODE_START) {
       result.nodes.push_back(readNode());
@@ -56,20 +77,20 @@ Node Connection::readNode() const {
 Attribute Connection::readAttribute(uint32_t length) const {
   uint16_t id;
   uint32_t data_bytes = length - sizeof(id);
-  m_socket->ReadBytes(&id, sizeof(id));
+  readBytes(m_socket, &id, sizeof(id));
 
-  uint8_t data[data_bytes];
-  m_socket->ReadBytes(data, data_bytes);
+  std::unique_ptr<uint8_t[]> data{new uint8_t[data_bytes]};
+  readBytes(m_socket, data.get(), data_bytes);
 
   Attribute att{id};
-  att.setValueRaw(data, data_bytes);
+  att.setValueRaw(data.get(), data_bytes);
 
   return att;
 }
 
 Node Connection::readNodeWithHeader() const {
   uint32_t header;
-  m_socket->ReadBytes(&header, sizeof(header));
+  readBytes(m_socket, &header, sizeof(header));
   if (header != 0) {
     throw std::domain_error("Error parsing network message header");
   }
@@ -99,8 +120,8 @@ std::unique_ptr<BaseMessage> Connection::receiveMessage() const {
 bool Connection::writeNode(const Node &node) const {
   auto id = node.getId();
 
-  m_socket->WriteBytes(&NODE_START, sizeof(NODE_START));
-  m_socket->WriteBytes(&id, sizeof(id));
+  writeBytes(m_socket, &NODE_START, sizeof(NODE_START));
+  writeBytes(m_socket, &id, sizeof(id));
   for (const auto &a_p : node.attributes) {
     writeAttribute(a_p);
   }
@@ -108,17 +129,17 @@ bool Connection::writeNode(const Node &node) const {
   for (const Node &n_p : node.nodes) {
     writeNode(n_p);
   }
-  int written = m_socket->WriteBytes(&NODE_END, sizeof(NODE_END));
+  size_t written = writeBytes(m_socket, &NODE_END, sizeof(NODE_END));
 
   return (written == sizeof(NODE_END));
 }
 
 void Connection::writeAttribute(const Attribute &att) const {
   auto id = att.getId();
-  uint32_t length = att.getValueLen() + sizeof(id);
-  m_socket->WriteBytes(&length, sizeof(length));
-  m_socket->WriteBytes(&id, sizeof(id));
-  m_socket->WriteBytes(att.getValueRaw(), att.getValueLen());
+  uint32_t length = static_cast<uint32_t>(att.getValueLen()) + sizeof(id);
+  writeBytes(m_socket, &length, sizeof(length));
+  writeBytes(m_socket, &id, sizeof(id));
+  writeBytes(m_socket, att.getValueRaw(), att.getValueLen());
 }
 
 bool Connection::connect(const std::string &client_id,
