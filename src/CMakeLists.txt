@@ -29,20 +29,12 @@ target_link_libraries(zusi3tcp ${WINDOWS_LIB} ${CMAKE_THREAD_LIBS_INIT} )
 add_executable(zusi3cli ${CLI_SOURCES} ${CLI_HEADES} )
 target_link_libraries(zusi3cli zusi3tcp ${WINDOWS_LIB} )
 
-add_library(zusi3tcpserver  ${SERVER_SOURCES} ${SERVER_HEADERS} )
-target_link_libraries(zusi3tcpserver zusi3tcp ${WINDOWS_LIB} )
-
 target_include_directories(zusi3tcp PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 	PRIVATE src)
 
 target_include_directories(zusi3cli PRIVATE
-	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
-	PRIVATE src)
-
-target_include_directories(zusi3tcpserver PRIVATE
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 	PRIVATE src)
