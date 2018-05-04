@@ -24,8 +24,8 @@ SOFTWARE.
 
 #include <cstdint>
 #include <cstring>
-#include <stdexcept>
 #include <memory>
+#include <stdexcept>
 
 static const uint32_t NODE_START = 0;
 static const uint32_t NODE_END = 0xFFFFFFFF;
@@ -77,24 +77,23 @@ Node Connection::readNodeWithHeader() const {
   return readNode();
 }
 
-
 std::unique_ptr<BaseMessage> Connection::receiveMessage() const {
   auto root{readNodeWithHeader()};
   if (root.getId() != zusi::MsgType_Fahrpult) {
-      throw std::domain_error("Application type reported by server is not Fahrpult");
+    throw std::domain_error(
+        "Application type reported by server is not Fahrpult");
   }
 
   switch (root.nodes[0].getId()) {
-  case static_cast<uint16_t>(zusi::Command::DATA_FTD):
+    case static_cast<uint16_t>(zusi::Command::DATA_FTD):
       return std::make_unique<FtdDataMessage>(root.nodes[0]);
-  case static_cast<uint16_t>(zusi::Command::DATA_OPERATION):
+    case static_cast<uint16_t>(zusi::Command::DATA_OPERATION):
       return std::make_unique<OperationDataMessage>(root.nodes[0]);
-  case static_cast<uint16_t>(zusi::Command::DATA_PROG):
+    case static_cast<uint16_t>(zusi::Command::DATA_PROG):
       return std::make_unique<ProgDataMessage>(root.nodes[0]);
-  default:
+    default:
       throw std::domain_error("Invalid command");
   }
-
 }
 
 bool Connection::writeNode(const Node &node) const {
@@ -124,10 +123,10 @@ void Connection::writeAttribute(const Attribute &att) const {
 
 bool Connection::sendMessage(const Node &src) { return writeNode(src); }
 
-bool ClientConnection::connect(const std::string &client_id,
-                               const std::vector<FuehrerstandData> &fs_data,
-                               const std::vector<uint16_t> &prog_data,
-                               bool bedienung) {
+bool Connection::connect(const std::string &client_id,
+                         const std::vector<FuehrerstandData> &fs_data,
+                         const std::vector<uint16_t> &prog_data,
+                         bool bedienung) {
   // Send hello
   Node hello_message(1);
 
@@ -206,9 +205,9 @@ bool ClientConnection::connect(const std::string &client_id,
   return true;
 }
 
-bool ClientConnection::sendInput(const In::Taster &taster,
-                                 const In::Kommando &kommando,
-                                 const In::Aktion &aktion, uint16_t position) {
+bool Connection::sendInput(const In::Taster &taster,
+                           const In::Kommando &kommando,
+                           const In::Aktion &aktion, uint16_t position) {
   Node input_message(MsgType_Fahrpult);
   Node input{Command::INPUT};
 

@@ -51,11 +51,11 @@ SOFTWARE.
 namespace zusi {
 
 #if __cpp_lib_experimental_optional
-using std::experimental::optional;
 using std::experimental::make_optional;
+using std::experimental::optional;
 #elif __cpp_lib_optional
-using std::optional;
 using std::make_optional;
+using std::optional;
 #else
 #error "No usable optional"
 #endif
@@ -104,56 +104,53 @@ Fs_Gesamtweg = 25,
 };
 */
 
-
 //! Abstract interface for a socket
 class Socket {
  public:
   virtual ~Socket() {}
 
-    virtual bool connect() = 0;
+  virtual bool connect() = 0;
 
   /** @brief Try to read bytes into dest from socket.
-  *
-  * Method should block until all requested bytes are read, or the stream ends
-  * @param dest Data buffer to write to
-  * @param bytes Number of bytes to read
-  * @return Number of bytes read
-  */
+   *
+   * Method should block until all requested bytes are read, or the stream ends
+   * @param dest Data buffer to write to
+   * @param bytes Number of bytes to read
+   * @return Number of bytes read
+   */
   virtual int ReadBytes(void* dest, int bytes) = 0;
 
   /**
-  * @brief Try to write bytes from src to socket.
-  * @param src Data buffer to read from
-  * @param bytes Number of bytes to read
-  * @return Number of bytes successfully written
-  */
+   * @brief Try to write bytes from src to socket.
+   * @param src Data buffer to read from
+   * @param bytes Number of bytes to read
+   * @return Number of bytes successfully written
+   */
   virtual int WriteBytes(const void* src, int bytes) = 0;
 
   /**
-  * @brief Check if there is incoming data waiting to be read
-  * @return True if data available, otherwise false
-  */
+   * @brief Check if there is incoming data waiting to be read
+   * @return True if data available, otherwise false
+   */
   virtual bool DataToRead() = 0;
 };
 
 /**
-* @brief Generic Zusi message attribute.
-* Data is owned by the class
-*/
+ * @brief Generic Zusi message attribute.
+ * Data is owned by the class
+ */
 class Attribute {
  public:
   //! Construct an empty attribute
   Attribute() : data{}, m_id(0) {}
 
   /** @brief Constructs an attribute
-  * @param id Attribute ID
-  */
-  explicit Attribute(uint16_t id)
-      : data{}, m_id(id) {}
+   * @param id Attribute ID
+   */
+  explicit Attribute(uint16_t id) : data{}, m_id(id) {}
 
   template <typename T>
-  Attribute(uint16_t id, T value)
-      : data{}, m_id(id) {
+  Attribute(uint16_t id, T value) : data{}, m_id(id) {
     setValue<T>(value);
   }
 
@@ -202,13 +199,12 @@ class Attribute {
   uint16_t m_id;
 };
 
-
 template <uint16_t id_, typename NetworkType, typename CPPType = NetworkType>
 struct AttribTag {
   using networktype = NetworkType;
   using type = CPPType;
-    enum key {id = id_};
-  //constexpr static auto id = id_;
+  enum key { id = id_ };
+  // constexpr static auto id = id_;
 
   constexpr AttribTag() {}
 
@@ -275,8 +271,8 @@ class Node {
   explicit Node() : m_id(0) {}
 
   /** @brief Constructs an Node
-  * @param id Attribute ID
-  */
+   * @param id Attribute ID
+   */
   explicit Node(uint16_t id) : m_id(id) {}
   explicit Node(Command cmd) : Node(static_cast<uint16_t>(cmd)) {}
 
@@ -326,8 +322,8 @@ class Node {
 template <uint16_t id_, typename... Atts>
 class ComplexNode {
  public:
-  //constexpr static auto id = id_;
-    enum vals { id = id_ };
+  // constexpr static auto id = id_;
+  enum vals { id = id_ };
 
  private:
   using AttTupleT = std::tuple<Atts...>;
@@ -386,17 +382,17 @@ using ProtokollVersion = AttribTag<1, uint16_t>;
 using ClientTyp = AttribTag<2, uint16_t>;
 using ClientId = AttribTag<3, std::string>;
 using ClientVersion = AttribTag<4, std::string>;
-}
+}  // namespace Hello
 
 namespace ClientTyp {
 constexpr Hello::ClientTyp Zusi{1};
 constexpr Hello::ClientTyp Fahrpult{2};
-}
+}  // namespace ClientTyp
 
 namespace HelloAck {
 using ZusiVersion = AttribTag<1, std::string>;
 using ZusBerbindungsinfo = AttribTag<2, std::string>;
-}
+}  // namespace HelloAck
 
 namespace Sifa {
 /* TODO: For these types enums with the value names might be nice, or constexpr
@@ -407,7 +403,7 @@ using Hupe = AttribTag<3, uint8_t>;
 using Hauptschalter = AttribTag<4, uint8_t>;
 using Stoerschalter = AttribTag<5, uint8_t>;
 using Luftabsperrhahn = AttribTag<6, uint8_t>;
-}
+}  // namespace Sifa
 
 namespace FS {
 using Geschwindigkeit = AttribTag<1, float>;
@@ -437,14 +433,14 @@ using Sifa =
     ComplexNode<100, zusi::Sifa::Bauart, zusi::Sifa::Leuchtmelder,
                 zusi::Sifa::Hupe, zusi::Sifa::Hauptschalter,
                 zusi::Sifa::Stoerschalter, zusi::Sifa::Luftabsperrhahn>;
-}
+}  // namespace FS
 
 namespace ProgData {
 using Zugdatei = AttribTag<1, std::string>;
 using Zugnummer = AttribTag<2, std::string>;
 using SimStart = AttribTag<3, float>;
 using BuchfahrplanDatei = AttribTag<4, std::string>;
-}
+}  // namespace ProgData
 
 namespace In {
 using Taster = AttribTag<1, uint16_t>;
@@ -452,7 +448,7 @@ using Kommando = AttribTag<2, uint16_t>;
 using Aktion = AttribTag<3, uint16_t>;
 using Position = AttribTag<4, uint16_t>;
 using Spezial = AttribTag<5, float>;
-}
+}  // namespace In
 
 namespace Taster {
 constexpr In::Taster KeineTastaturbedienung{0};
@@ -529,7 +525,7 @@ constexpr In::Taster BatterieHauptschalterAus{70};
 constexpr In::Taster NBUE{71};
 constexpr In::Taster Bremsprobefunktion{72};
 constexpr In::Taster LeistungAus{73};
-}
+}  // namespace Taster
 
 namespace Kommando {
 constexpr In::Kommando Unbestimmt{0};
@@ -541,7 +537,7 @@ constexpr In::Kommando SifaDown{0x39};
 constexpr In::Kommando SifaUp{0x3A};
 constexpr In::Kommando PfeifeDown{0x45};
 constexpr In::Kommando PfeifeUp{0x46};
-}
+}  // namespace Kommando
 
 namespace Aktion {
 constexpr In::Aktion Default{0};
@@ -553,7 +549,7 @@ constexpr In::Aktion AbDown{5};
 constexpr In::Aktion AbUp{6};
 constexpr In::Aktion Absolut{7};
 constexpr In::Aktion Absolut1000er{8};
-}
+}  // namespace Aktion
 
 class BaseMessage {
  protected:
@@ -585,29 +581,30 @@ class FtdDataMessage : public BaseMessage {
 
 class OperationDataMessage : public BaseMessage {
  public:
-  using BetaetigungT = ComplexNode<1, In::Taster, In::Kommando, In::Aktion, In::Position, In::Spezial>;
+  using BetaetigungT = ComplexNode<1, In::Taster, In::Kommando, In::Aktion,
+                                   In::Position, In::Spezial>;
   class iterator {
-      using InnerT = std::vector<Node>::const_iterator;
-      InnerT inner, end;
-  public:
-      // TODO: When dropping the filtering in operator++() the end can be removed
-      iterator(InnerT inner, InnerT end) : inner(inner), end(end) {}
+    using InnerT = std::vector<Node>::const_iterator;
+    InnerT inner, end;
 
-      bool operator==(const iterator& other) const {
-          return inner == other.inner;
-      }
-      bool operator!=(const iterator& other) const {
-          return inner != other.inner;
-      }
-      iterator operator++() {
-          ++inner;
-          // TODO - We filter out "Kombischalter", maybe till we have std::variant?
-          inner = std::find_if_not(inner, end, [](auto it) { return it.getId() == 2; });
-          return iterator{inner, end};
-      }
-      BetaetigungT operator*() const {
-          return BetaetigungT{*inner};
-      }
+   public:
+    // TODO: When dropping the filtering in operator++() the end can be removed
+    iterator(InnerT inner, InnerT end) : inner(inner), end(end) {}
+
+    bool operator==(const iterator& other) const {
+      return inner == other.inner;
+    }
+    bool operator!=(const iterator& other) const {
+      return inner != other.inner;
+    }
+    iterator operator++() {
+      ++inner;
+      // TODO - We filter out "Kombischalter", maybe till we have std::variant?
+      inner =
+          std::find_if_not(inner, end, [](auto it) { return it.getId() == 2; });
+      return iterator{inner, end};
+    }
+    BetaetigungT operator*() const { return BetaetigungT{*inner}; }
   };
 
   OperationDataMessage(const Node root) : BaseMessage{std::move(root)} {}
@@ -617,14 +614,16 @@ class OperationDataMessage : public BaseMessage {
   OperationDataMessage(OperationDataMessage&&) = default;
 
   iterator begin() const noexcept {
-      return iterator{std::find_if_not(root.nodes.begin(), root.nodes.end(), [](auto it) { return it.getId() == 2; }), root.nodes.end()};
+    return iterator{std::find_if_not(root.nodes.begin(), root.nodes.end(),
+                                     [](auto it) { return it.getId() == 2; }),
+                    root.nodes.end()};
   }
   iterator end() const noexcept {
-      return iterator{root.nodes.end(), root.nodes.end()};
+    return iterator{root.nodes.end(), root.nodes.end()};
   }
 
   decltype(root.nodes.size()) size() const noexcept {
-      return root.nodes.size();
+    return root.nodes.size();
   }
 };
 
@@ -642,16 +641,53 @@ class ProgDataMessage : public BaseMessage {
   }
 };
 
-//! Parent class for a connection
+namespace {
+template <typename Ts, int i>
+typename std::enable_if<(i == 0)>::type appendIdToVec(std::vector<uint16_t>&) {}
+
+template <typename Ts, int i>
+typename std::enable_if<(i > 0)>::type appendIdToVec(
+    std::vector<uint16_t>& vec) {
+  vec.push_back(std::tuple_element<i - 1, Ts>::type::id);
+  /* TODO C++17 use constexpr if and remove above function and enable_if
+  if constexpr (i > 0) {
+      appendIdToVec<Ts, i-1>(vec);
+  }
+  */
+  appendIdToVec<Ts, i - 1>(vec);
+}
+}  // namespace
+
+//! Manages connection to a Zusi server
 class Connection {
  public:
-  /**
-  * @brief Create connection which will communicate over socket
-  * @param socket The socket - class does not take ownership of it
-  */
   Connection(Socket* socket) : m_socket(socket) {}
 
-  virtual ~Connection() {}
+  /**
+   * @brief Set up connection to server
+   *
+   * Sends the HELLO and NEEDED_DATA commands and processes the results
+   *
+   * @param client_id Null-terminated character array with an identification
+   * string for the client
+   * @param fs_data Fuehrerstand Data ID's to subscribe to
+   * @param prog_data Zusi program status ID's to subscribe to
+   * @param bedienung Subscribe to input events if true
+   * @return True on success
+   */
+  bool connect(const std::string& client_id,
+               const std::vector<FuehrerstandData>& fs_data,
+               const std::vector<uint16_t>& prog_data, bool bedienung);
+
+  template <typename FtdT, typename ProgDataT>
+  bool connect(const std::string& client_id, bool bedienung) {
+    std::vector<uint16_t> ftds, progdata;
+
+    appendIdToVec<FtdT, std::tuple_size<FtdT>::value>(ftds);
+    appendIdToVec<ProgDataT, std::tuple_size<ProgDataT>::value>(progdata);
+
+    return connect(client_id, ftds, progdata, bedienung);
+  }
 
   //! Receive a message
   std::unique_ptr<zusi::BaseMessage> receiveMessage() const;
@@ -664,74 +700,10 @@ class Connection {
 
   Node readNodeWithHeader() const;
 
- private:
-  Node readNode() const;
-  Attribute readAttribute(uint32_t length) const;
-
-  void writeAttribute(const Attribute& att) const;
-
- protected:
-  // TODO: ClientConnecton's calls to this via sendMessage()?
-  bool writeNode(const Node& node) const;
-
- protected:
-  Socket* m_socket;
-};
-
-namespace {
-template<typename Ts, int i>
-typename std::enable_if<(i == 0)>::type appendIdToVec(std::vector<uint16_t>&) {
-}
-
-template<typename Ts, int i>
-typename std::enable_if<(i>0)>::type appendIdToVec(std::vector<uint16_t>& vec) {
-    vec.push_back(std::tuple_element<i-1, Ts>::type::id);
-    /* TODO C++17 use constexpr if and remove above function and enable_if
-    if constexpr (i > 0) {
-        appendIdToVec<Ts, i-1>(vec);
-    }
-    */
-    appendIdToVec<Ts, i-1>(vec);
-}
-}
-
-//! Manages connection to a Zusi server
-class ClientConnection : public Connection {
- public:
-  ClientConnection(Socket* socket) : Connection(socket) {}
-
-  virtual ~ClientConnection() {}
-
   /**
-  * @brief Set up connection to server
-  *
-  * Sends the HELLO and NEEDED_DATA commands and processes the results
-  *
-  * @param client_id Null-terminated character array with an identification
-  * string for the client
-  * @param fs_data Fuehrerstand Data ID's to subscribe to
-  * @param prog_data Zusi program status ID's to subscribe to
-  * @param bedienung Subscribe to input events if true
-  * @return True on success
-  */
-  bool connect(const std::string& client_id,
-               const std::vector<FuehrerstandData>& fs_data,
-               const std::vector<uint16_t>& prog_data, bool bedienung);
-
-  template<typename FtdT, typename ProgDataT>
-  bool connect(const std::string& client_id, bool bedienung) {
-      std::vector<uint16_t> ftds, progdata;
-
-      appendIdToVec<FtdT, std::tuple_size<FtdT>::value>(ftds);
-      appendIdToVec<ProgDataT, std::tuple_size<ProgDataT>::value>(progdata);
-
-      return connect(client_id, ftds, progdata, bedienung);
-  }
-
-  /**
-  * @brief Send an INPUT command
-  * @return True on success
-  */
+   * @brief Send an INPUT command
+   * @return True on success
+   */
   bool sendInput(const In::Taster& taster, const In::Kommando& kommando,
                  const In::Aktion& aktion, uint16_t position);
 
@@ -742,6 +714,14 @@ class ClientConnection : public Connection {
   std::string getConnectionnfo() { return m_connectionInfo; }
 
  private:
+  Node readNode() const;
+  Attribute readAttribute(uint32_t length) const;
+  void writeAttribute(const Attribute& att) const;
+
+  // TODO: ClientConnecton's calls to this via sendMessage()?
+  bool writeNode(const Node& node) const;
+
+  Socket* m_socket;
   std::string m_zusiVersion;
   std::string m_connectionInfo;
 };
