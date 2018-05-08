@@ -17,17 +17,16 @@ set ( CLI_HEADERS )
 set ( SERVER_SOURCES serverconnection.cpp )
 set ( SERVER_HEADERS include/serverconnection.h )
 
-find_package(Boost REQUIRED )
-include_directories(${Boost_INCLUDE_DIRS})
-
-FIND_PACKAGE ( Threads REQUIRED )
+find_package( Boost REQUIRED system )
+find_package( Threads REQUIRED )
 
 
 add_library(zusi3tcp  ${SOURCES} ${HEADERS} )
-target_link_libraries(zusi3tcp ${WINDOWS_LIB} ${CMAKE_THREAD_LIBS_INIT} )
+target_include_directories(zusi3tcp PUBLIC ${Boost_INCLUDE_DIRS})
+target_link_libraries(zusi3tcp PUBLIC ${WINDOWS_LIB} ${CMAKE_THREAD_LIBS_INIT} Boost::system )
 
 add_executable(zusi3cli ${CLI_SOURCES} ${CLI_HEADES} )
-target_link_libraries(zusi3cli zusi3tcp ${WINDOWS_LIB} )
+target_link_libraries(zusi3cli zusi3tcp )
 
 target_include_directories(zusi3tcp PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

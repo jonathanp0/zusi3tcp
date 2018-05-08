@@ -25,7 +25,6 @@ SOFTWARE.
 #include <iostream>
 #include <thread>
 
-#define BOOST_ERROR_CODE_HEADER_ONLY 1
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
 
