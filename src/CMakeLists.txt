@@ -23,7 +23,7 @@ find_package( Threads REQUIRED )
 
 add_library(zusi3tcp  ${SOURCES} ${HEADERS} )
 target_include_directories(zusi3tcp PUBLIC ${Boost_INCLUDE_DIRS})
-target_link_libraries(zusi3tcp PUBLIC ${WINDOWS_LIB} ${CMAKE_THREAD_LIBS_INIT} Boost::system )
+target_link_libraries(zusi3tcp PUBLIC ${WINDOWS_LIB} ${CMAKE_THREAD_LIBS_INIT} ${Boost_LIBRARIES} ) #Boost::system )
 
 add_executable(zusi3cli ${CLI_SOURCES} ${CLI_HEADES} )
 target_link_libraries(zusi3cli zusi3tcp )
