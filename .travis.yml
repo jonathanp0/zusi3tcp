@@ -1,32 +1,21 @@
 language: cpp
-dist: xenial
 
 addons:
     apt:
+        sources:
+            - george-edison55-precise-backports
         packages:
             - cmake-data
             - cmake
-            - libboost-dev
-            - libboost-system-dev
 
 compiler: clang
 
-
-cache:
-            apt: true
-            ccache: true
-                    
 matrix:
   include:
     - os: linux
-      addons:
-        apt:
-          packages:
-            - clang-3.7
-      env:
-        - MATRIX_EVAL="CC=clang && CXX=clang++"
-        - MATRIX_EVAL="CC=gcc && CXX=g++"
-
+      compiler: clang
+    - os: linux
+      compiler: gcc
 
 before_install:
     - eval "${MATRIX_EVAL}"
@@ -36,4 +25,4 @@ script:
     - cd build
     - cmake ..
     - make
-    - ctest
+    - ./test/testjsring
