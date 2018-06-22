@@ -6,8 +6,8 @@ addons:
         packages:
             - cmake-data
             - cmake
-            - boost-dev
-            - boost-system-dev
+            - libboost-dev
+            - libboost-system-dev
 
 matrix:
   include:
