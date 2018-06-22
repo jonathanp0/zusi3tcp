@@ -1,9 +1,8 @@
 language: cpp
+dist: xenial
 
 addons:
     apt:
-        sources:
-            - george-edison55-precise-backports
         packages:
             - cmake-data
             - cmake
@@ -12,94 +11,21 @@ addons:
 
 compiler: clang
 
+
+cache:
+            apt: true
+            ccache: true
+                    
 matrix:
   include:
-    # works on Precise and Trusty
-    #- os: linux
-    #  addons:
-    #    apt:
-    #      sources:
-    #        - ubuntu-toolchain-r-test
-    #        - llvm-toolchain-precise-3.6
-    #      packages:
-    #        - clang-3.6
-    #  env:
-    #    - MATRIX_EVAL="CC=clang-3.6 && CXX=clang++-3.6"
-
-    # works on Precise and Trusty
     - os: linux
       addons:
         apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - llvm-toolchain-precise-3.7
           packages:
             - clang-3.7
       env:
         - MATRIX_EVAL="CC=clang-3.7 && CXX=clang++-3.7"
 
-# These fail with clang apparently using GCC's old libc
-#
-# In file included from /home/travis/build/johannes/jsjson/tests/container.cc:1:
-# In file included from /home/travis/build/johannes/jsjson/tests/common.h:4:
-# In file included from /home/travis/build/johannes/jsjson/include/jsjson/jsjson.h:13:
-# In file included from /usr/bin/../lib/gcc/x86_64-linux-gnu/4.8/../../../../include/c++/4.8/map:61:
-# In file included from /usr/bin/../lib/gcc/x86_64-linux-gnu/4.8/../../../../include/c++/4.8/bits/stl_map.h:63:
-# In file included from /usr/bin/../lib/gcc/x86_64-linux-gnu/4.8/../../../../include/c++/4.8/tuple:39:
-# In file included from /usr/bin/../lib/gcc/x86_64-linux-gnu/4.8/../../../../include/c++/4.8/array:38:
-# In file included from /usr/bin/../lib/gcc/x86_64-linux-gnu/4.8/../../../../include/c++/4.8/stdexcept:39:
-# In file included from /usr/bin/../lib/gcc/x86_64-linux-gnu/4.8/../../../../include/c++/4.8/string:52:
-# In file included from /usr/bin/../lib/gcc/x86_64-linux-gnu/4.8/../../../../include/c++/4.8/bits/basic_string.h:2815:
-# In file included from /usr/bin/../lib/gcc/x86_64-linux-gnu/4.8/../../../../include/c++/4.8/ext/string_conversions.h:43:
-# /usr/bin/../lib/gcc/x86_64-linux-gnu/4.8/../../../../include/c++/4.8/cstdio:120:11: error: no member named 'gets' in the global namespace
-#   using ::gets;
-#           ~~^
-#           1 error generated.
-#
-#    # works on Precise and Trusty
-#    - os: linux
-#      addons:
-#        apt:
-#          sources:
-#            - ubuntu-toolchain-r-test
-#            - llvm-toolchain-precise-3.8
-#          packages:
-#            - clang-3.8
-#      env:
-#        - MATRIX_EVAL="CC=clang-3.8 && CXX=clang++-3.8"
-#
-#    # works on Trusty
-#    - os: linux
-#      addons:
-#        apt:
-#          sources:
-#            - llvm-toolchain-trusty-3.9
-#          packages:
-#            - clang-3.9
-#      env:
-#        - MATRIX_EVAL="CC=clang-3.9 && CXX=clang++-3.9"
-#
-#    # works on Trusty
-#    - os: linux
-#      addons:
-#        apt:
-#          sources:
-#            - llvm-toolchain-trusty-4.0
-#          packages:
-#            - clang-4.0
-#      env:
-#        - MATRIX_EVAL="CC=clang-4.0 && CXX=clang++-4.0"
-#
-#    # works on Trusty
-#    - os: linux
-#      addons:
-#        apt:
-#          sources:
-#            - llvm-toolchain-trusty
-#          packages:
-#            - clang-5.0
-#      env:
-#        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
 
 before_install:
     - eval "${MATRIX_EVAL}"
