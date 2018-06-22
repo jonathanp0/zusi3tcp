@@ -1,11 +1,11 @@
 language: cpp
-distro: xenial
+distro: trusty
 sudo: required 
 
 addons:
     apt:
         sources:
-            - sourceline: 'deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-5.0 main'
+            - sourceline: 'deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-5.0 main'
         packages:
             - cmake-data
             - cmake
