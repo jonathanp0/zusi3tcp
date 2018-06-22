@@ -5,7 +5,7 @@ sudo: required
 addons:
     apt:
         sources:
-            - llvm-toolchain-xenial-5.0
+            - sourceline: 'deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-5.0 main'
         packages:
             - cmake-data
             - cmake
