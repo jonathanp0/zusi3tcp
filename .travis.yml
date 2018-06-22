@@ -8,6 +8,7 @@ addons:
             - cmake-data
             - cmake
             - libboost-dev
+            - libboost-system-dev
 
 compiler: clang
 
