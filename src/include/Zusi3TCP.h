@@ -44,7 +44,7 @@ SOFTWARE.
 #elif __has_include(<optional>)
 #include <optional>
 #else
-#error "Missing <optional>"
+#include <boost/optional.hpp>
 #endif
 #else
 #error "Missing __has_include"
@@ -60,7 +60,8 @@ using std::experimental::optional;
 using std::make_optional;
 using std::optional;
 #else
-#error "No usable optional"
+using boost::make_optional;
+using boost::optional;
 #endif
 
 //! Message Type Node ID - used for root node of message
