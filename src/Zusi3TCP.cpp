@@ -49,6 +49,15 @@ static std::size_t writeBytes(socket &sock, const void *src,
   return boost::asio::write(
       sock, boost::asio::buffer(src, bytes) /*, ignored_error*/);
 }
+
+#if __cpp_lib_make_unique
+using std::make_unique;
+#else
+template <typename T, typename... Args>
+std::unique_ptr<T> make_unique(Args &&... args) {
+  return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+#endif
 }  // namespace
 
 Node Connection::readNode() const {
@@ -106,11 +115,11 @@ std::unique_ptr<BaseMessage> Connection::receiveMessage() const {
 
   switch (root.nodes[0].getId()) {
     case static_cast<uint16_t>(zusi::Command::DATA_FTD):
-      return std::make_unique<FtdDataMessage>(root.nodes[0]);
+      return make_unique<FtdDataMessage>(root.nodes[0]);
     case static_cast<uint16_t>(zusi::Command::DATA_OPERATION):
-      return std::make_unique<OperationDataMessage>(root.nodes[0]);
+      return make_unique<OperationDataMessage>(root.nodes[0]);
     case static_cast<uint16_t>(zusi::Command::DATA_PROG):
-      return std::make_unique<ProgDataMessage>(root.nodes[0]);
+      return make_unique<ProgDataMessage>(root.nodes[0]);
     default:
       throw std::domain_error("Invalid command");
   }
