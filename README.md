@@ -1,5 +1,7 @@
 # Zusi 3 TCP Protocol Library
 
+[![Build Status](https://travis-ci.org/johannes/zusi3tcp.svg?branch=master)](https://travis-ci.org/johannes/zusi3tcp)
+
 An implementation of the Zusi 3 TCP protocol in C++.
 
 This is a fork of [jonathanp0's zus3tcp](https://github.com/jonathanp0/zusi3tcp) with *no* compatibility
