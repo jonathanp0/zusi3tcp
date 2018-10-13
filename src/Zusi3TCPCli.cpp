@@ -73,10 +73,6 @@ class dumpVisitor : boost::static_visitor<void> {
     }
   }
 };
-
-void dumpData(const MessageVariant& msg) {
-  boost::apply_visitor(dumpVisitor{}, msg);
-}
 }  // namespace
 
 int main() {
@@ -107,8 +103,7 @@ int main() {
 
         do {
           auto msg{con.receiveMessage()};
-
-          dumpData(std::move(msg));
+          boost::apply_visitor(dumpVisitor{}, msg);
         } while (true);
 
       } catch (std::domain_error& err) {
