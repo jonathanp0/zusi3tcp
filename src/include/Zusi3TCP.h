@@ -35,13 +35,18 @@ SOFTWARE.
 #include <type_traits>
 #include <vector>
 
+#define BOOST_SYSTEM_NO_LIB
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
+#include <boost/variant.hpp>
 
 #ifdef __has_include
 #if __has_include(<experimental/optional>)
 #include <experimental/optional>
-#elif __has_include(<optional>)
+#elif __has_include(<optional>) && (!_MSC_VER || _HAS_CXX17)
+/* TODO: We use C++14, VC2017 has this hader but fails unless C++17 mode is
+ * enabled */
+#define DEFINE_HAVE_STD_OPTIONAL_AS_MSVC_DOESNT_HAVE___CPP_LIB_OPTIONAL 1
 #include <optional>
 #else
 #include <boost/optional.hpp>
@@ -56,9 +61,11 @@ namespace zusi {
 #if __cpp_lib_experimental_optional
 using std::experimental::make_optional;
 using std::experimental::optional;
-#elif __cpp_lib_optional
+#elif __cpp_lib_optional || \
+    DEFINE_HAVE_STD_OPTIONAL_AS_MSVC_DOESNT_HAVE___CPP_LIB_OPTIONAL
 using std::make_optional;
 using std::optional;
+#undef DEFINE_HAVE_STD_OPTIONAL_AS_MSVC_DOESNT_HAVE___CPP_LIB_OPTIONAL
 #else
 using boost::make_optional;
 using boost::optional;
@@ -107,7 +114,6 @@ Fs_Gesamtweg = 25,
         Fs_Sifa = 100
 };
 */
-
 /**
  * @brief Generic Zusi message attribute.
  * Data is owned by the class
@@ -308,7 +314,7 @@ class ComplexNode {
     constexpr int id = std::tuple_element<N - 1, AttTupleT>::type::id;
     auto att = std::find_if(
         node.attributes.cbegin(), node.attributes.cend(),
-        [](const Attribute& att) -> bool { return att.getId() == id; });
+        [id](const Attribute& att) -> bool { return att.getId() == id; });
     if (att != node.attributes.cend()) {
       std::get<N - 1>(atts) = *att;
     } else {
@@ -338,7 +344,7 @@ class ComplexNode {
     return std::get<search>(atts);
   }
 
-#if __cpp_lib_apply > 0
+#ifdef __cpp_lib_apply
 #error Yay a new compiler \o/ we can add this feature easily!
   Node node() const {
     Node result{id_};
@@ -522,24 +528,12 @@ constexpr In::Aktion Absolut{7};
 constexpr In::Aktion Absolut1000er{8};
 }  // namespace Aktion
 
-class BaseMessage {
- protected:
+class FtdDataMessage {
   const Node root;
 
  public:
-  BaseMessage(const Node root) : root{std::move(root)} {}
-  BaseMessage(Node&& root) : root{std::move(root)} {}
-
-  BaseMessage(const BaseMessage&) = default;
-  BaseMessage(BaseMessage&&) = default;
-
-  virtual ~BaseMessage() {}
-};
-
-class FtdDataMessage : public BaseMessage {
- public:
-  FtdDataMessage(const Node root) : BaseMessage{std::move(root)} {}
-  FtdDataMessage(Node&& root) : BaseMessage{root} {}
+  FtdDataMessage(const Node root) : root{std::move(root)} {}
+  FtdDataMessage(Node&& root) : root{root} {}
 
   FtdDataMessage(const FtdDataMessage&) = default;
   FtdDataMessage(FtdDataMessage&&) = default;
@@ -548,9 +542,16 @@ class FtdDataMessage : public BaseMessage {
   optional<T> get() const noexcept {
     return root.get<T>();
   }
+
+  template <typename T>
+  bool has() const noexcept {
+    return root.get<T>();
+  }
 };
 
-class OperationDataMessage : public BaseMessage {
+class OperationDataMessage {
+  const Node root;
+
  public:
   using BetaetigungT = ComplexNode<1, In::Taster, In::Kommando, In::Aktion,
                                    In::Position, In::Spezial>;
@@ -578,8 +579,8 @@ class OperationDataMessage : public BaseMessage {
     BetaetigungT operator*() const { return BetaetigungT{*inner}; }
   };
 
-  OperationDataMessage(const Node root) : BaseMessage{std::move(root)} {}
-  OperationDataMessage(Node&& root) : BaseMessage{root} {}
+  OperationDataMessage(const Node root) : root{std::move(root)} {}
+  OperationDataMessage(Node&& root) : root{root} {}
 
   OperationDataMessage(const OperationDataMessage&) = default;
   OperationDataMessage(OperationDataMessage&&) = default;
@@ -598,10 +599,12 @@ class OperationDataMessage : public BaseMessage {
   }
 };
 
-class ProgDataMessage : public BaseMessage {
+class ProgDataMessage {
+  const Node root;
+
  public:
-  ProgDataMessage(const Node root) : BaseMessage{std::move(root)} {}
-  ProgDataMessage(Node&& root) : BaseMessage{root} {}
+  ProgDataMessage(const Node root) : root{std::move(root)} {}
+  ProgDataMessage(Node&& root) : root{root} {}
 
   ProgDataMessage(const ProgDataMessage&) = default;
   ProgDataMessage(ProgDataMessage&&) = default;
@@ -611,6 +614,9 @@ class ProgDataMessage : public BaseMessage {
     return root.get<T>();
   }
 };
+
+using MessageVariant =
+    boost::variant<FtdDataMessage, OperationDataMessage, ProgDataMessage>;
 
 namespace {
 template <typename Ts, int i>
@@ -644,7 +650,7 @@ class Connection {
    * @param fs_data Fuehrerstand Data ID's to subscribe to
    * @param prog_data Zusi program status ID's to subscribe to
    * @param bedienung Subscribe to input events if true
-   * @return True on success
+   * @return True on successnknown CMake command
    */
   bool connect(const std::string& client_id,
                const std::vector<FuehrerstandData>& fs_data,
@@ -661,7 +667,7 @@ class Connection {
   }
 
   //! Receive a message
-  std::unique_ptr<zusi::BaseMessage> receiveMessage() const;
+  MessageVariant receiveMessage() const;
 
   //! Check if there is data read
   bool dataAvailable() const { return m_socket.available() > 0; }

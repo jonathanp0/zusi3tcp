@@ -25,32 +25,26 @@ SOFTWARE.
 #include <iostream>
 #include <thread>
 
-#include <boost/array.hpp>
-#include <boost/asio.hpp>
-
 using namespace std::literals;
 using boost::asio::ip::tcp;
 using namespace zusi;
 
 namespace {
-void dumpData(std::unique_ptr<BaseMessage>&& msg) {
-  auto ftdmsg = dynamic_cast<const FtdDataMessage*>(msg.get());
-  auto opmsg = dynamic_cast<const OperationDataMessage*>(msg.get());
-  auto progmsg = dynamic_cast<const ProgDataMessage*>(msg.get());
-
-  if (ftdmsg) {
+class dumpVisitor : boost::static_visitor<void> {
+ public:
+  void operator()(const FtdDataMessage& ftdmsg) const {
     std::cout << "FTD message\n";
-    auto speed = ftdmsg->get<FS::Geschwindigkeit>();
+    auto speed = ftdmsg.get<FS::Geschwindigkeit>();
     if (speed) {
       std::cout << "   " << *speed * 3.6f << "km/h\n";
     }
 
-    auto gesamtweg = ftdmsg->get<FS::Gesamtweg>();
+    auto gesamtweg = ftdmsg.get<FS::Gesamtweg>();
     if (gesamtweg) {
       std::cout << "   Gesamtweg: " << *gesamtweg << std::endl;
     }
 
-    auto sifa = ftdmsg->get<FS::Sifa>();
+    auto sifa = ftdmsg.get<FS::Sifa>();
     if (sifa) {
       std::cout << "   Sifa Bauart: " << *sifa->get<Sifa::Bauart>() << "\n"
                 << "   Sifa Leuchtmelder: "
@@ -58,23 +52,30 @@ void dumpData(std::unique_ptr<BaseMessage>&& msg) {
                 << "   Sifa Hupe: " << (*sifa->get<Sifa::Hupe>() ? "AN" : "aus")
                 << "\n";
     }
+  }
 
-  } else if (opmsg) {
-    for (auto op : *opmsg) {
+  void operator()(const OperationDataMessage& opmsg) const {
+    for (auto op : opmsg) {
       std::cout << "Operation:\n";
       std::cout << "    Kommando " << *op.get<In::Kommando>() << "\n";
     }
-  } else if (progmsg) {
+  }
+
+  void operator()(const ProgDataMessage& progmsg) const {
     std::cout << "Progmsg\n";
-    auto zugnummer = progmsg->get<ProgData::Zugnummer>();
+    auto zugnummer = progmsg.get<ProgData::Zugnummer>();
     if (zugnummer) {
       std::cout << "Zugnummer: " << **zugnummer << '\n';
     }
-    auto zugdatei = progmsg->get<ProgData::BuchfahrplanDatei>();
+    auto zugdatei = progmsg.get<ProgData::BuchfahrplanDatei>();
     if (zugdatei) {
       std::cout << "Zugdatei: " << **zugdatei << '\n';
     }
   }
+};
+
+void dumpData(const MessageVariant& msg) {
+  boost::apply_visitor(dumpVisitor{}, msg);
 }
 }  // namespace
 

@@ -32,6 +32,7 @@ static const uint32_t NODE_END = 0xFFFFFFFF;
 
 namespace zusi {
 namespace {
+
 using socket = boost::asio::ip::tcp::tcp::socket;
 static std::size_t readBytes(socket &sock, void *dest, std::size_t bytes) {
   boost::system::error_code error;
@@ -106,7 +107,7 @@ Node Connection::readNodeWithHeader() const {
   return readNode();
 }
 
-std::unique_ptr<BaseMessage> Connection::receiveMessage() const {
+MessageVariant Connection::receiveMessage() const {
   auto root{readNodeWithHeader()};
   if (root.getId() != zusi::MsgType_Fahrpult) {
     throw std::domain_error(
@@ -115,11 +116,11 @@ std::unique_ptr<BaseMessage> Connection::receiveMessage() const {
 
   switch (root.nodes[0].getId()) {
     case static_cast<uint16_t>(zusi::Command::DATA_FTD):
-      return make_unique<FtdDataMessage>(root.nodes[0]);
+      return FtdDataMessage(root.nodes[0]);
     case static_cast<uint16_t>(zusi::Command::DATA_OPERATION):
-      return make_unique<OperationDataMessage>(root.nodes[0]);
+      return OperationDataMessage(root.nodes[0]);
     case static_cast<uint16_t>(zusi::Command::DATA_PROG):
-      return make_unique<ProgDataMessage>(root.nodes[0]);
+      return ProgDataMessage(root.nodes[0]);
     default:
       throw std::domain_error("Invalid command");
   }
