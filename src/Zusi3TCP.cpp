@@ -53,14 +53,6 @@ static std::size_t writeBytes(socket &sock, const void *src,
       sock, boost::asio::buffer(src, bytes) /*, ignored_error*/);
 }
 
-#if __cpp_lib_make_unique
-using std::make_unique;
-#else
-template <typename T, typename... Args>
-std::unique_ptr<T> make_unique(Args &&... args) {
-  return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-}
-#endif
 }  // namespace
 
 Node Connection::readNode() const {
