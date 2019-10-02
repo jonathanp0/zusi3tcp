@@ -22,18 +22,20 @@ SOFTWARE.
 
 #include "Zusi3TCP.h"
 
-#include <cstdint>
 #include <cstring>
-#include <memory>
-#include <stdexcept>
+#include <iostream>
 
 static const uint32_t NODE_START = 0;
 static const uint32_t NODE_END = 0xFFFFFFFF;
+
+static char const *NODE_START_C = "\x00\x00\x00\x00";
+static char const *NODE_END_C = "\xFF\xFF\xFF\xFF";
 
 namespace zusi {
 namespace {
 
 using socket = boost::asio::ip::tcp::tcp::socket;
+
 static std::size_t readBytes(socket &sock, void *dest, std::size_t bytes) {
   boost::system::error_code error;
   std::size_t len = 0;
@@ -151,45 +153,155 @@ void Connection::writeAttribute(const Attribute &att) const {
   writeBytes(m_socket, att.getValueRaw(), att.getValueLen());
 }
 
-bool Connection::connect(const std::string &client_id,
-                         const std::vector<FuehrerstandData> &fs_data,
-                         const std::vector<uint16_t> &prog_data,
-                         bool bedienung) {
-  // Send hello
-  Node hello_message(1);
+template <typename NetworkType>
+struct serializeValue {
+  template <typename Attribute>
+  std::string operator()(Attribute const &attrib) {
+    return {reinterpret_cast<char const *>(&*attrib), sizeof(NetworkType)};
+  }
+};
 
-  zusi::Node hello{1};
+template <>
+struct serializeValue<void *> {
+  template <typename Attribute>
+  std::string operator()(Attribute const &attrib) {
+    return *attrib;
+  }
+};
 
-  hello.attributes.emplace_back(Hello::ProtokollVersion{2}.att());
-  hello.attributes.emplace_back(ClientTyp::Fahrpult.att());
-  hello.attributes.emplace_back(Hello::ClientId{client_id}.att());
-  hello.attributes.emplace_back(Hello::ClientVersion{"2.0"}.att());
+template <typename Attribute>
+std::string serializeAttribute(const Attribute &attrib) {
+  uint16_t id = Attribute::id;
+  std::string retval;
 
-  hello_message.nodes.push_back(hello);
-  writeNode(hello_message);
+  auto value = serializeValue<typename Attribute::networktype>{}(attrib);
 
-  // Recieve ACK_HELLO
-  Node hello_ack{readNodeWithHeader()};
-  if (hello_ack.nodes.size() != 1 ||
-      hello_ack.nodes[0].getId() !=
-          static_cast<uint16_t>(
-              Command::ACK_HELLO)) /* TODO: Refactor with C++17 */ {
-    throw std::runtime_error("Protocol error - invalid response from server");
-  } else {
-    for (const auto &att : hello_ack.nodes[0].attributes) {
-      switch (att.getId()) {
-        case HelloAck::ZusiVersion::id:
-          m_zusiVersion = HelloAck::ZusiVersion{att};
-          break;
-        case HelloAck::ZusBerbindungsinfo::id:
-          m_connectionInfo = HelloAck::ZusBerbindungsinfo{att};
-          break;
-        default:
-          break;
-      }
+  retval.reserve(3 * sizeof(uint32_t));
+  uint32_t length = static_cast<uint32_t>(value.length() + sizeof(id));
+  retval.append(reinterpret_cast<char const *>(&length), sizeof(length));
+  retval.append(reinterpret_cast<char const *>(&id), sizeof(id));
+  retval.append(value);
+
+  return retval;
+}
+
+template <typename... ChildNodes, typename... Attribute>
+auto serializeNode(Command command, std::tuple<Attribute...> attrib,
+                   ChildNodes... nodes) {
+  std::string retval;
+  retval.reserve(4 + sizeof(command) +
+                 sizeof...(Attribute) * (3 * sizeof(uint32_t)) + 4);
+
+  retval.append(NODE_START_C, 4);
+  retval.append(reinterpret_cast<char const *>(&command), sizeof(command));
+  (retval.append(serializeAttribute(std::get<Attribute>(attrib))), ...);
+  (retval.append(serializeNode2(nodes)), ...);
+  retval.append(NODE_END_C, 4);
+  return retval;
+}
+
+template <typename... Attribute>
+auto serializeNode2(
+    std::tuple<Command, std::tuple<Attribute...>, std::tuple<>> attrib) {
+  return serializeNode(std::get<0>(attrib), std::get<1>(attrib));
+}
+
+template <typename... ChildNodes, typename... Attribute>
+auto serializeNode2(
+    std::tuple<Command, std::tuple<Attribute...>, std::tuple<ChildNodes...>>
+        attrib) {
+  return serializeNode(std::get<0>(attrib), std::get<1>(attrib),
+                       std::get<2>(attrib));
+}
+
+class reader {
+#pragma pack(push, 1)
+  struct header_t {
+    uint32_t length;
+    uint16_t type;
+  };
+#pragma pack(pop)
+
+ public:
+  explicit reader(socket &sock) : m_sock{sock} {}
+
+  template <typename... Ts>
+  auto read(Command command) {
+    header_t header;
+    readBytes(m_sock, &header, sizeof(header));
+    readBytes(m_sock, &header, sizeof(header));
+    if (header.length != 0 || header.type != static_cast<uint16_t>(command)) {
+      throw std::domain_error("Error parsing network message header");
     }
+
+    std::tuple<Ts...> retval;
+    do {
+      readBytes(m_sock, &header.length, sizeof(header.length));
+      if (header.length == -1u) {
+        break;
+      }
+      readBytes(m_sock, &header.type, sizeof(header.type));
+
+      (read_if_match(std::get<Ts>(retval), header) || ...) ||
+          read_null(header.length);
+    } while (true);
+
+    readBytes(m_sock, &header.length, sizeof(header.length));
+    return retval;
   }
 
+ private:
+  template <typename T>
+  bool read_if_match(T &t, header_t &hdr) {
+    if (T::id != hdr.type) {
+      return false;
+    }
+
+    uint32_t data_bytes = hdr.length - 2;
+    std::unique_ptr<uint8_t[]> data{new uint8_t[data_bytes]};
+    readBytes(m_sock, data.get(), data_bytes);
+
+    t = T{std::move(data), data_bytes};
+    return true;
+  }
+
+  bool read_null(uint32_t length) {
+    uint32_t data_bytes = length - 2;
+    std::unique_ptr<uint8_t[]> data{new uint8_t[data_bytes]};
+    readBytes(m_sock, data.get(), data_bytes);
+    return true;
+  }
+
+  socket &m_sock;
+};
+
+Connection::Connection(socket &socket, const std::string &client_id)
+    : m_socket(socket) {
+  std::string msg = serializeNode(
+      Command::HELLO, std::make_tuple(),
+      std::make_tuple(
+          Command::HELLO,
+          std::make_tuple(Hello::ProtokollVersion{2}, ClientTyp::Fahrpult,
+                          Hello::ClientId{client_id},
+                          Hello::ClientVersion{"2.0"}),
+          std::make_tuple()));
+
+  boost::asio::write(m_socket, boost::asio::buffer(msg));
+
+  uint8_t ok;
+  reader rdr{m_socket};
+  std::tie(m_zusiVersion, m_connectionInfo, ok) =
+      rdr.read<HelloAck::ZusiVersion, HelloAck::ZusiVerbindungsinfo,
+               HelloAck::ZusiOk>(Command::ACK_HELLO);
+
+  if (ok) {
+    throw std::domain_error("Zusi couldn't register our client");
+  }
+}
+
+bool Connection::connect(const std::vector<FuehrerstandData> &fs_data,
+                         const std::vector<uint16_t> &prog_data,
+                         bool bedienung) {
   // Send NEEDED_DATA
   Node needed_data_msg(MsgType_Fahrpult);
   Node needed{Command::NEEDED_DATA};
@@ -221,11 +333,10 @@ bool Connection::connect(const std::string &client_id,
   writeNode(needed_data_msg);
 
   // Receive ACK_NEEDED_DATA
-  Node data_ack{readNodeWithHeader()};
-  if (data_ack.nodes.size() != 1 ||
-      data_ack.nodes[0].getId() !=
-          static_cast<uint16_t>(
-              Command::ACK_NEEDED_DATA)) /* TODO: Refactor with C++17 */ {
+  uint8_t ok;
+  reader rdr{m_socket};
+  std::tie(ok) = rdr.read<NeedDataAck::ZusiOk>(Command::ACK_NEEDED_DATA);
+  if (ok) {
     throw std::runtime_error(
         "Protocol error - server refused data subscription");
   }

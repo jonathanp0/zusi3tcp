@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.2)
 project (zusi3tcptest)
 
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -25,6 +25,7 @@ add_library(libgtest IMPORTED STATIC GLOBAL)
 add_dependencies(libgtest gtest)
 
 set_target_properties(libgtest PROPERTIES
+    #"IMPORTED_LOCATION" "${binary_dir}/lib/gtestd.lib"
     "IMPORTED_LOCATION" "${binary_dir}/lib/libgtest.a"
     "IMPORTED_LINK_INTERFACE_LIBRARIES" "${CMAKE_THREAD_LIBS_INIT}"
 )
@@ -33,10 +34,14 @@ add_library(libgmock IMPORTED STATIC GLOBAL)
 add_dependencies(libgmock gtest)
 
 set_target_properties(libgmock PROPERTIES
+    #"IMPORTED_LOCATION" "${binary_dir}/lib/gmockd.lib"
     "IMPORTED_LOCATION" "${binary_dir}/lib/libgmock.a"
     "IMPORTED_LINK_INTERFACE_LIBRARIES" "${CMAKE_THREAD_LIBS_INIT}"
 )
 
+#set(GTEST_LIBRARY "${binary_dir}/lib/gtestd.lib")
+#set(GTEST_MAIN_LIBRARY "${binary_dir}/lib/gtest_maind.lib")
+#set(GTEST_INCLUDE_DIR "${source_dir}/googletest/include")
 set(GTEST_LIBRARY "${binary_dir}/lib/libgtest.a")
 set(GTEST_MAIN_LIBRARY "${binary_dir}/lib/libgtest_main.a")
 set(GTEST_INCLUDE_DIR "${source_dir}/googletest/include")

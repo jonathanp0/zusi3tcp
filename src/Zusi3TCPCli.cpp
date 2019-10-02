@@ -86,17 +86,16 @@ int main() {
 
     boost::system::error_code error;
     tcp::resolver resolver(io_service);
-    tcp::resolver::query query{"192.168.2.22"s, "1436"s};
+    tcp::resolver::query query{"localhost"s, "1436"s};
     tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
     boost::asio::connect(socket, endpoint_iterator, error);
 
     if (!error) {
       try {
-        Connection con(socket);
+        Connection con(socket, "Zusi3TCPCli");
         con.connect<std::tuple<FS::Geschwindigkeit, FS::Gesamtweg, FS::Sifa>,
                     std::tuple<ProgData::SimStart, ProgData::Zugnummer,
-                               ProgData::BuchfahrplanDatei> >("Zusi3TCPCli",
-                                                              true);
+                               ProgData::BuchfahrplanDatei> >(true);
 
         std::cout << "Zusi Version:" << con.getZusiVersion() << std::endl;
         std::cout << "Connection Info: " << con.getConnectionnfo() << std::endl;

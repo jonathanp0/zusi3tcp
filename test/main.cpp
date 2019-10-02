@@ -322,10 +322,14 @@ TEST(Connection, readNestedAttribute) {
   EXPECT_TRUE(ftdmsg);
 
   // Check attribs
+  bool has_speed = ftdmsg->has<FS::Geschwindigkeit>();
+  EXPECT_TRUE(has_speed);
   auto speed = ftdmsg->get<FS::Geschwindigkeit>();
   EXPECT_TRUE(speed);
   EXPECT_FLOAT_EQ(*speed, 11.83f);
 
+  bool has_schleudern = ftdmsg->has<FS::LMSchleudern>();
+  EXPECT_TRUE(has_schleudern);
   auto schleudern = ftdmsg->get<FS::LMSchleudern>();
   EXPECT_TRUE(schleudern);
   EXPECT_FALSE(*schleudern);
