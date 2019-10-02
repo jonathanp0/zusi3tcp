@@ -37,20 +37,16 @@ namespace {
 using socket = boost::asio::ip::tcp::tcp::socket;
 
 static std::size_t readBytes(socket &sock, void *dest, std::size_t bytes) {
-  boost::system::error_code error;
   std::size_t len = 0;
   do {
-    /* TODO: Handle error */
     len += sock.read_some(
-        boost::asio::buffer(reinterpret_cast<char *>(dest) + len, bytes - len),
-        error);
+        boost::asio::buffer(reinterpret_cast<char *>(dest) + len, bytes - len));
   } while (bytes > len);
   return len;
 }
 static std::size_t writeBytes(socket &sock, const void *src,
                               std::size_t bytes) {
-  return boost::asio::write(
-      sock, boost::asio::buffer(src, bytes) /*, ignored_error*/);
+  return boost::asio::write(sock, boost::asio::buffer(src, bytes));
 }
 
 }  // namespace
