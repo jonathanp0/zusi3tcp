@@ -75,10 +75,13 @@ class dumpVisitor : boost::static_visitor<void> {
 };
 }  // namespace
 
-int main() {
+int main(int argc, char* argv[]) {
   boost::asio::io_service io_service;
   tcp::socket socket{io_service};
 
+  const std::string host = (argc == 2) ? argv[1] : "localhost";
+
+  std::cout << "Using " << host << ":1436.\n";
   std::cout << "Running in endless loop, trying to connect. Use Ctrl-C to "
                "terminate.\n";
   do {
@@ -86,7 +89,7 @@ int main() {
 
     boost::system::error_code error;
     tcp::resolver resolver(io_service);
-    tcp::resolver::query query{"localhost"s, "1436"s};
+    tcp::resolver::query query{host, "1436"s};
     tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
     boost::asio::connect(socket, endpoint_iterator, error);
 
