@@ -26,6 +26,7 @@ SOFTWARE.
 #include <chrono>
 #include <set>
 #include <stdexcept>
+#include <string_view>
 #include <tuple>
 #include <type_traits>
 
@@ -204,10 +205,10 @@ class Connection {
                  const In::Aktion& aktion, uint16_t position);
 
   //! Get the version string supplied by the server
-  const std::string& getZusiVersion() const { return m_zusiVersion; }
+  const std::string_view getZusiVersion() const { return m_zusiVersion; }
 
   //! Get the connection info string supplied by the server
-  const std::string& getConnectionnfo() const { return m_connectionInfo; }
+  const std::string_view getConnectionnfo() const { return m_connectionInfo; }
 
  private:
   Node readNode() const;
