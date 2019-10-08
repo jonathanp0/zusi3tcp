@@ -221,7 +221,7 @@ class reader {
     std::tuple<Ts...> retval;
     do {
       readBytes(m_sock, &header.length, sizeof(header.length));
-      if (header.length == -1u) {
+      if (header.length == 0xffffffff) {
         break;
       }
       readBytes(m_sock, &header.type, sizeof(header.type));
@@ -328,23 +328,40 @@ bool Connection::connect(const std::vector<FuehrerstandData> &fs_data,
   return true;
 }
 
-bool Connection::sendInput(const In::Taster &taster,
-                           const In::Kommando &kommando,
-                           const In::Aktion &aktion, uint16_t position) {
+bool Connection::sendCommand(Command command, const Node &action) {
   Node input_message(MsgType_Fahrpult);
-  Node input{Command::INPUT};
-
-  Node action{1};
-
-  action.attributes.emplace_back(taster.att());
-  action.attributes.emplace_back(kommando.att());
-  action.attributes.emplace_back(aktion.att());
-  action.attributes.emplace_back(In::Position{position}.att());
-  action.attributes.emplace_back(In::Spezial{.0}.att());
+  Node input{command};
 
   input.nodes.push_back(action);
   input_message.nodes.push_back(input);
 
   return writeNode(input_message);
 }
+
+bool Connection::sendInput(const In::Taster &taster,
+                           const In::Kommando &kommando,
+                           const In::Aktion &aktion, uint16_t position) {
+  Node action{1};
+  action.attributes.emplace_back(taster.att());
+  action.attributes.emplace_back(kommando.att());
+  action.attributes.emplace_back(aktion.att());
+  action.attributes.emplace_back(In::Position{position}.att());
+  action.attributes.emplace_back(In::Spezial{.0}.att());
+
+  return sendCommand(Command::INPUT, action);
+}
+
+bool Connection::sendControl(ControlOp op, Attribute *att) {
+  Node node{static_cast<uint16_t>(op)};
+  if (att) {
+    node.attributes.push_back(*att);
+  }
+  return sendCommand(Command::CONTROL, node);
+}
+
+bool Connection::control(const Control::ZugStarten &zug) {
+  auto att = zug.att();
+  return sendControl(ControlOp::ZUG_STARTEN, &att);
+}
+
 }  // namespace zusi

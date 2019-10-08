@@ -22,6 +22,17 @@ enum class Command : uint16_t {
   GRAPHIC = 0x010C
 };
 
+enum class ControlOp : uint16_t {
+  PAUSE = 1,
+  SIM_NEUSTARTEN = 2,
+  ZUG_STARTEN = 3,
+  BEENDEN = 4,
+  PLAN_NEUSTARTEN = 5,
+  ZUG_WAEHLEN = 6,
+  ZEITSPRUNG = 7,
+  ZEITRAFFER = 8
+};
+
 using FuehrerstandData = uint16_t;
 /*
  TODO - maybe we want to keep this enum, while then we have the name in two
@@ -226,6 +237,17 @@ constexpr In::Aktion AbUp{6};
 constexpr In::Aktion Absolut{7};
 constexpr In::Aktion Absolut1000er{8};
 }  // namespace Aktion
+
+namespace Control {
+using ZugStarten = AttribTag<1, std::string>;
+
+template <typename T>
+struct op {};
+template <>
+struct op<ZugStarten> {
+  static constexpr auto id = ControlOp::ZUG_STARTEN;
+};
+}  // namespace Control
 
 }  // namespace zusi
 #endif  // ZUSI3TCPDATA_H

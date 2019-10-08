@@ -204,6 +204,8 @@ class Connection {
   bool sendInput(const In::Taster& taster, const In::Kommando& kommando,
                  const In::Aktion& aktion, uint16_t position);
 
+  bool control(const Control::ZugStarten& zug);
+
   //! Get the version string supplied by the server
   const std::string_view getZusiVersion() const { return m_zusiVersion; }
 
@@ -215,6 +217,9 @@ class Connection {
   Attribute readAttribute(uint32_t length) const;
   bool writeNode(const Node& node) const;
   void writeAttribute(const Attribute& att) const;
+
+  bool sendCommand(Command command, const Node& action);
+  bool sendControl(ControlOp op, Attribute* att = nullptr);
 
   boost::asio::ip::tcp::tcp::socket& m_socket;
   std::string m_zusiVersion;
