@@ -240,13 +240,6 @@ constexpr In::Aktion Absolut1000er{8};
 
 namespace Control {
 using ZugStarten = AttribTag<1, std::string>;
-
-template <typename T>
-struct op {};
-template <>
-struct op<ZugStarten> {
-  static constexpr auto id = ControlOp::ZUG_STARTEN;
-};
 }  // namespace Control
 
 }  // namespace zusi
