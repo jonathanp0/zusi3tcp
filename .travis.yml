@@ -7,7 +7,7 @@ before_install:
   - sudo apt-get update -qq
 
 install: 
-  - sudo apt-get install -qq g++-6 cmake libboost-dev libboost-system-dev
+  - sudo apt-get install -qq g++-6 cmake libboost-dev libboost-system-dev libboost-date-time-dev libboost-regex-dev
   - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90
 
 script:
